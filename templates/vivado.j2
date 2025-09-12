@@ -1,0 +1,46 @@
+# === Arquivos Verilog ===
+{% for f in files %}
+    {% set ext = f.split('.')[-1].lower() %}
+    {% if ext == "sv" %}
+        read_verilog -sv {{ f }}
+    {% elif ext == "v" %}
+        read_verilog {{ f }}
+    {% elif ext in ["vhdl", "vhd"] %}
+        read_vhdl -vhdl2008 {{ f }}
+    {% else %}
+        # Arquivo não reconhecido: {{ f }}
+    {% endif %}
+{% endfor %}
+
+# Constraints
+read_xdc "{{ constraints }}"
+set_property PROCESSING_ORDER EARLY [get_files {{ constraints }}]
+
+# Synthesis
+synth_design -top "{{ top_module }}" -part "{{ fpga_part }}"
+
+# Place and Route
+opt_design
+place_design
+
+# Reports após placement
+report_utilization -hierarchical -file {{ prefix }}_utilization_hierarchical_place.rpt
+report_utilization               -file {{ prefix }}_utilization_place.rpt
+report_io                        -file {{ prefix }}_io.rpt
+report_control_sets -verbose     -file {{ prefix }}_control_sets.rpt
+report_clock_utilization         -file {{ prefix }}_clock_utilization.rpt
+
+# Routing
+route_design
+
+# Reports após routing
+report_timing_summary -no_header -no_detailed_paths
+report_route_status                            -file {{ prefix }}_route_status.rpt
+report_drc                                     -file {{ prefix }}_drc.rpt
+report_timing_summary -datasheet -max_paths 10 -file {{ prefix }}_timing.rpt
+report_power                                   -file {{ prefix }}_power.rpt
+
+# Bitstream
+write_bitstream -force "{{ prefix }}.bit"
+
+exit

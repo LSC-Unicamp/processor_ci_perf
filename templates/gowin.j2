@@ -1,0 +1,22 @@
+# === Dispositivo ===
+set_device -name {{ device_name }} {{ device_package }}
+
+# === Constraints ===
+{% for f in constraints %}
+add_file {{ f }}
+{% endfor %}
+
+# === Arquivos Verilog ===
+{% for f in verilog_files %}
+add_file {{ f }}
+{% endfor %}
+
+# === Opções do design ===
+set_option -top_module {{ top_module }}
+
+{% for opt, val in options.items() %}
+set_option -{{ opt }} {{ val }}
+{% endfor %}
+
+# === Run synthesis, place & route ===
+run all

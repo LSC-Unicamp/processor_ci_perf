@@ -1,0 +1,10 @@
+# === Ler arquivos SystemVerilog com defer ===
+{% for f in sv_files %}
+yosys read_systemverilog -defer {{ f }}
+{% endfor %}
+
+# Linkar todos os módulos
+yosys read_systemverilog -link
+
+# Síntese para ECP5
+yosys synth_ecp5 -json {{ output_json }} -top {{ top_module }} -abc9
