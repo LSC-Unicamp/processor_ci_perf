@@ -7,7 +7,9 @@ DEFAULT_CONFIG_PATH = '/eda/processor_ci/config'
 
 
 def main() -> None:
-    run_fpga_flow('colorlight_i9', ['main.sv'], top_module='top')
+    run_fpga_flow(
+        'opensdrlab_kintex7', ['main.sv'], top_module='top', get_reports=True
+    )
     print('Hello, World!')
 
 

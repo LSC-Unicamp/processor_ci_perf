@@ -25,6 +25,7 @@ opt_design
 place_design
 
 # Reports após placement
+report_utilization -hierarchical -file reports/{{ prefix }}_utilization.xml -format xml
 report_utilization -hierarchical -file reports/{{ prefix }}_utilization_hierarchical_place.rpt
 report_utilization               -file reports/{{ prefix }}_utilization_place.rpt
 report_io                        -file reports/{{ prefix }}_io.rpt
@@ -36,10 +37,12 @@ route_design
 
 # Reports após routing
 report_timing_summary -no_header -no_detailed_paths
-report_route_status                            -file reports/{{ prefix }}_route_status.rpt
-report_drc                                     -file reports/{{ prefix }}_drc.rpt
-report_timing_summary -datasheet -max_paths 10 -file reports/{{ prefix }}_timing.rpt
-report_power                                   -file reports/{{ prefix }}_power.rpt
+report_route_status                 -file reports/{{ prefix }}_route_status.rpt
+report_drc                          -file reports/{{ prefix }}_drc.rpt
+report_timing_summary -max_paths 10 -file reports/{{ prefix }}_timing.rpt
+report_power                        -file reports/{{ prefix }}_power.rpt
+report_timing_summary    -no_header -file reports/{{ prefix }}_timing_resumed.rpt -no_detailed_paths
+
 
 # Bitstream
 write_bitstream -force "{{ prefix }}.bit"
