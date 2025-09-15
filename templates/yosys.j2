@@ -1,5 +1,5 @@
 # === Ler arquivos SystemVerilog com defer ===
-{% for f in sv_files %}
+{% for f in files %}
 yosys read_systemverilog -defer {{ f }}
 {% endfor %}
 

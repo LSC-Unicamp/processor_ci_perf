@@ -6,8 +6,8 @@ set_device -name {{ device_name }} {{ device_package }}
 add_file {{ f }}
 {% endfor %}
 
-# === Arquivos Verilog ===
-{% for f in verilog_files %}
+# === Arquivos ===
+{% for f in files %}
 add_file {{ f }}
 {% endfor %}
 

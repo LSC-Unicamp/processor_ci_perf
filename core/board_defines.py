@@ -96,21 +96,66 @@ DEFINES_BY_BOARD = {
 """,
 }
 
-VIVADO_BOARDS = [
-    'xilinx_vc709',
-    'digilent_arty_a7_100t',
-    'digilent_nexys4_ddr',
-    'opensdrlab_kintex7',
-    'zedboard',
-]
+VIVADO_BOARDS = {
+    'xilinx_vc709': {
+        'part': 'xc7vx690tffg1761-2',
+        'vendor': 'xilinx',
+        'family': 'virtex7',
+        'prefix': 'xilinx_vc709',
+    },
+    'digilent_arty_a7_100t': {
+        'part': 'xc7a100tcsg324-1',
+        'vendor': 'xilinx',
+        'family': 'artix7',
+        'prefix': 'digilent_arty_a7_100t',
+    },
+    'digilent_nexys4_ddr': {
+        'part': 'xc7a100tcsg324-1',
+        'vendor': 'xilinx',
+        'family': 'artix7',
+        'prefix': 'digilent_nexys4_ddr',
+    },
+    'opensdrlab_kintex7': {
+        'part': 'xc7k325tffg676-2',
+        'vendor': 'xilinx',
+        'family': 'kintex7',
+        'prefix': 'opensdrlab_kintex7',
+    },
+    'zedboard': {
+        'part': 'xc7z020clg484-1',
+        'vendor': 'xilinx',
+        'family': 'zynq7',
+        'prefix': 'zedboard',
+    },
+}
 
-YOSYS_BOARDS = [
-    'colorlight_i9',
-]
+YOSYS_BOARDS = {
+    'colorlight_i9': {
+        'part': 'ecp5-45f',
+        'vendor': 'lattice',
+        'family': 'ecp5',
+        'prefix': 'colorlight_i9',
+        'option': '--45k',
+        'package': 'CABGA381',
+        'speed': '6',
+    }
+}
 
-GOWIN_BOARDS = [
-    'tangnano_20k',
-    'tangnano_9k',
-]
+GOWIN_BOARDS = {
+    'tangnano_20k': {
+        'device_name': 'GW1NR-9C',
+        'device_package': 'C',
+        'vendor': 'gowin',
+        'family': 'gowin',
+        'prefix': 'tangnano_20k',
+    },
+    'tangnano_9k': {
+        'device_name': 'GW1NR-9K',
+        'device_package': 'C',
+        'vendor': 'gowin',
+        'family': 'gowin',
+        'prefix': 'tangnano_9k',
+    },
+}
 
-SUPPORTED_BOARDS = VIVADO_BOARDS + YOSYS_BOARDS + GOWIN_BOARDS
+SUPPORTED_BOARDS = VIVADO_BOARDS | YOSYS_BOARDS | GOWIN_BOARDS
