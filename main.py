@@ -7,10 +7,17 @@ DEFAULT_CONFIG_PATH = '/eda/processor_ci/config'
 
 
 def main() -> None:
-    run_fpga_flow(
-        'opensdrlab_kintex7', ['main.sv'], top_module='top', get_reports=True
-    )
+    #run_fpga_flow(
+    #    'opensdrlab_kintex7', ['main.sv'], top_module='top', get_reports=True
+    #)
     print('Hello, World!')
+    run_asic_flow(
+        'asap7',
+        ["main.sv"],
+        top_module='top',
+        get_reports=True,
+    )
+    print('\n\nHello, World!\n\n')
 
 
 if __name__ == '__main__':
