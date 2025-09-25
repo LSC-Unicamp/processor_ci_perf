@@ -1,21 +1,28 @@
-import os
-import re
+# core/fpga.py
 import csv
 import json
-from core import ImplementationFlow
+import os
+import re
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, List
+
 from jinja2 import Environment, FileSystemLoader
-from core import run_cmd, write_template_to_file
-from core.log import print_blue, print_red, print_green, print_yellow
-from core import TEMPLATES_DIR, CONSTRAINTS_DIR
+
+from core import (
+    CONSTRAINTS_DIR,
+    TEMPLATES_DIR,
+    ImplementationFlow,
+    run_cmd,
+    write_template_to_file,
+)
 from core.board_defines import (
     DEFINES_BY_BOARD,
+    GOWIN_BOARDS,
     SUPPORTED_BOARDS,
     VIVADO_BOARDS,
     YOSYS_BOARDS,
-    GOWIN_BOARDS,
 )
+from core.log import print_blue, print_green, print_red, print_yellow
 
 TOOLCHAINS_INSTALL_PATH = {
     'vivado': os.getenv('VIVADO_INSTALL_PATH', ''),

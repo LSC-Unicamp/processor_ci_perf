@@ -1,13 +1,12 @@
+# core/__init__.py
 import os
-import re
-import csv
-import json
 import subprocess
-from core.log import print_blue, print_red, print_yellow, print_green
-from typing import Any, Dict, List, Optional
-from jinja2 import Environment, FileSystemLoader, Template
 from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional
 
+from jinja2 import Environment, FileSystemLoader, Template
+
+from core.log import print_blue, print_green, print_red, print_yellow
 
 # Diretórios principais
 CORE_DIR: str = os.path.dirname(os.path.abspath(__file__))
