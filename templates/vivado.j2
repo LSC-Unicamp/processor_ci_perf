@@ -12,6 +12,15 @@ read_vhdl -vhdl2008 {{ f }}
 {% endif %}
 {% endfor %}
 
+# include dirs
+
+{% if include_dirs %}
+set_property include_dirs [list 
+{% for dir in include_dirs %}
+"{{ dir }}"
+{% endfor %}
+] [get_filesets sources_1]
+{% endif %}
 
 # Constraints
 read_xdc "{{ constraints }}"

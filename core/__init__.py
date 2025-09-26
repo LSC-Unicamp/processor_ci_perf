@@ -4,7 +4,7 @@ import subprocess
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from jinja2 import Environment, FileSystemLoader, Template
+from jinja2 import Environment, Template
 
 from core.log import print_blue, print_green, print_red, print_yellow
 
@@ -33,7 +33,7 @@ def write_template_to_file(
 
 def run_cmd(command: List[str], cwd: Optional[str] = None) -> None:
     print_yellow(f"Running command: {' '.join(command)}")
-    subprocess.run(command, cwd=cwd, check=True)
+    subprocess.run(command, cwd=cwd, check=False)
 
 
 # -------------------------
@@ -46,6 +46,7 @@ class ImplementationFlow(ABC):
         project_files: List[str],
         constraint_file: str,
         top_module: str,
+        include_dirs: List[str],
         env: Environment,
     ) -> None:
         self.technology: str = technology
@@ -53,6 +54,7 @@ class ImplementationFlow(ABC):
         self.constraint_file: str = constraint_file
         self.top_module: str = top_module
         self.env: Environment = env
+        self.include_dirs: List[str] = include_dirs
 
     @abstractmethod
     def generate_project(self) -> None:

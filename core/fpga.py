@@ -8,6 +8,8 @@ from typing import Any, Dict, List
 
 from jinja2 import Environment, FileSystemLoader
 
+CURRENT_DIR: str = os.getcwd()
+
 from core import (
     CONSTRAINTS_DIR,
     TEMPLATES_DIR,
@@ -65,6 +67,7 @@ class VivadoFlow(ImplementationFlow):
             'top_module': self.top_module,
             'fpga_part': VIVADO_BOARDS[self.technology]['part'],
             'prefix': VIVADO_BOARDS[self.technology]['prefix'],
+            'include_dirs': self.include_dirs,
         }
 
         write_template_to_file(
@@ -105,10 +108,10 @@ class VivadoFlow(ImplementationFlow):
 
     def report(self, report_path: str = 'reports') -> None:
         timing_file = os.path.join(
-            report_path, f'{self.technology}_timing.rpt'
+            "reports", f'{self.technology}_timing.rpt'
         )
         util_file_xml = os.path.join(
-            report_path, f'{self.technology}_utilization.xml'
+            "reports", f'{self.technology}_utilization.xml'
         )
         csv_file = os.path.join(report_path, f'{self.technology}_report.csv')
 
@@ -237,16 +240,23 @@ class YosysFlow(ImplementationFlow):
         output_json: str = (
             f"build/{YOSYS_BOARDS[self.technology]['prefix']}.synth.json"
         )
+
+        include_dirs_str = ' '.join(
+        f'-I{CURRENT_DIR}/{d}' for d in self.include_dirs
+    )
+        
         context: Dict[str, Any] = {
             'files': self.project_files,
             'top_module': self.top_module,
             'output_json': output_json,
+            'include_dirs': include_dirs_str,
         }
 
         write_template_to_file(
             self.env, 'yosys.j2', context, 'yosys_project.tcl'
         )
         os.makedirs('build', exist_ok=True)
+        os.makedirs('reports', exist_ok=True)
         print_green(f"Yosys project files generated for '{self.technology}'")
 
     def run_tool(self) -> None:
@@ -308,16 +318,23 @@ class YosysFlow(ImplementationFlow):
         run_cmd(['rm', '-rf', 'build', '*.bit', '*.json', '*.rpt', 'slpp_all'])
 
     def report(self, report_path: str = 'reports') -> None:
+
+        print_blue(f"Generating report for board: '{self.technology}'")
+
+        print_red(report_path)
+
         prefix: str = YOSYS_BOARDS[self.technology]['prefix']
-        report_path: str = f'reports/{prefix}_place_route.json'
+        json_report_path: str = f'reports/{prefix}_place_route.json'
         csv_path: str = f'{report_path}/{prefix}_report.csv'
 
         # --- Lê o JSON ---
-        with open(report_path, 'r') as f:
+        with open(json_report_path, 'r') as f:
             data: Dict[str, Any] = json.load(f)
 
         fmax_info: Dict[str, Any] = data.get('fmax', {})
         util_info: Dict[str, Any] = data.get('utilization', {})
+
+        os.makedirs(report_path, exist_ok=True)
 
         with open(csv_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
@@ -437,19 +454,20 @@ def get_flow(
     project_files: List[str],
     constraint_file: str,
     top_module: str,
+    include_dirs: List[str],
     env: Environment,
 ) -> ImplementationFlow:
     if board_name in VIVADO_BOARDS:
         return VivadoFlow(
-            board_name, project_files, constraint_file, top_module, env
+            technology=board_name, project_files=project_files, constraint_file=constraint_file, top_module=top_module, env=env, include_dirs=include_dirs
         )
     elif board_name in YOSYS_BOARDS:
         return YosysFlow(
-            board_name, project_files, constraint_file, top_module, env
+            technology=board_name, project_files=project_files, constraint_file=constraint_file, top_module=top_module, env=env, include_dirs=include_dirs
         )
     elif board_name in GOWIN_BOARDS:
         return GowinFlow(
-            board_name, project_files, constraint_file, top_module, env
+            technology=board_name, project_files=project_files, constraint_file=constraint_file, top_module=top_module, env=env, include_dirs=include_dirs
         )
     else:
         raise ValueError(f"Board '{board_name}' not supported.")
@@ -461,6 +479,7 @@ def get_flow(
 def run_fpga_flow(
     board_name: str,
     project_files: List[str],
+    include_dirs: List[str],
     constraint_file: str = 'default',
     top_module: str = 'processorci_top',
     get_reports: bool = False,
@@ -481,7 +500,12 @@ def run_fpga_flow(
     )
 
     flow: ImplementationFlow = get_flow(
-        board_name, project_files, constraint_file, top_module, env
+        board_name=board_name,
+        project_files=project_files,
+        constraint_file=constraint_file,
+        top_module=top_module,
+        include_dirs=include_dirs,
+        env=env,
     )
     flow.run()
 

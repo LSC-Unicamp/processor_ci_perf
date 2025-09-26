@@ -43,8 +43,8 @@ class OpenRoadFlow(ImplementationFlow):
             'core_utilization': 5,
             'place_density': 0.10,
             'synth_hdl_frontend': 'slang',
-            'synth_hierarchical': False,
-            'synth_min_keep_size': 0,
+            'synth_hierarchical': True,
+            'synth_min_keep_size': 10,
             'additional_lefs': False,
             'additional_lef_files': DEFINES_BY_PDK[self.technology].get(
                 'additional_lef_files', []
@@ -87,6 +87,7 @@ class OpenRoadFlow(ImplementationFlow):
 def run_asic_flow(
     pdk_name: str,
     project_files: list[str],
+    include_dirs: list[str],
     constraint_file: str = 'default',
     top_module: str = 'processorci_top',
     get_reports: bool = False,
@@ -111,6 +112,7 @@ def run_asic_flow(
         constraint_file=constraint_file,
         top_module=top_module,
         env=env,
+        include_dirs=include_dirs,
     )
 
     flow.run()
