@@ -1,5 +1,6 @@
 # core/__init__.py
 import os
+import re
 import subprocess
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
@@ -16,6 +17,50 @@ TEMPLATES_DIR: str = os.path.normpath(
 CONSTRAINTS_DIR: str = os.path.normpath(
     os.path.join(CORE_DIR, '..', 'constraints')
 )
+
+def ensure_env(var_name: str, default_value: str) -> str:
+    """
+    Garante que uma variável de ambiente esteja definida.
+    Se não existir, define com o valor padrão.
+    
+    Retorna o valor final da variável.
+    """
+    if var_name not in os.environ:
+        os.environ[var_name] = default_value
+        print(f"[INFO] Variável de ambiente '{var_name}' não existia. Setada para: {default_value}")
+    else:
+        print(f"[INFO] Variável de ambiente '{var_name}' já existe: {os.environ[var_name]}")
+    return os.environ[var_name]
+
+
+def find_clock_signal(verilog_file: str) -> Optional[str]:
+    """
+    Procura no arquivo Verilog por um sinal de clock.
+    
+    Critérios:
+    - Deve ser input
+    - Deve ter 1 bit (não vetor, ou [0:0])
+    - Nome contém 'clk' ou 'clock' (case-insensitive)
+    - Tipo pode ser 'wire' ou 'logic' (opcional)
+    
+    Retorna:
+        Nome do sinal de clock ou None se não encontrado
+    """
+    clk_signal = None
+    input_regex = re.compile(
+        r'^\s*input\s+(?:wire|logic)?\s*(?:\[0:0\]\s*)?(\w+)\s*[,;]',
+        re.IGNORECASE
+    )
+    
+    with open(verilog_file, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if 'clk' in line.lower() or 'clock' in line.lower():
+                match = input_regex.match(line)
+                if match:
+                    clk_signal = match.group(1)
+                    break  # retorna o primeiro encontrado
+    return clk_signal
 
 
 def write_template_to_file(

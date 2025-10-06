@@ -5,15 +5,19 @@ export PLATFORM        = {{ platform }}
 export SYNTH_HIERARCHICAL ?= {{ synth_hierarchical }}
 export SYNTH_MINIMUM_KEEP_SIZE ?= {{ synth_min_keep_size }}
 
+{% if include_dirs %}
+export VERILOG_INCLUDE_DIRS = {{ include_dirs | join(' \\\n\t') }}
+{% endif %}
+
 export VERILOG_FILES = {{ verilog_files | join(' \\\n\t') }}
 export SDC_FILE      = {{ sdc_file }}
 
 {% if additional_lefs == true %}
-export ADDITIONAL_LEFS = {{ additional_lef_files | join(' \\\n\t') }}
+export ADDITIONAL_LEFS = $(PLATFORM_DIR)/{{ additional_lef_files | join(' \\\n\t$(PLATFORM_DIR)/') }}
 {% endif %}
 
 {% if additional_libs == true %}
-export ADDITIONAL_LIBS = {{ additional_lib_files | join(' \\\n\t') }}
+export ADDITIONAL_LIBS = $(PLATFORM_DIR)/{{ additional_lib_files | join(' \\\n\t$(PLATFORM_DIR)/') }}
 {% endif %}
 
 export ABC_AREA           = 1

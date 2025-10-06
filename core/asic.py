@@ -1,6 +1,7 @@
 # core/asic.py
 import os
 import re
+from core import ensure_env
 from typing import Any, Dict
 
 from jinja2 import Environment, FileSystemLoader
@@ -46,14 +47,15 @@ class OpenRoadFlow(ImplementationFlow):
             'synth_hdl_frontend': 'slang',
             'synth_hierarchical': True,
             'synth_min_keep_size': 10,
-            'additional_lefs': False,
+            'additional_lefs': DEFINES_BY_PDK[self.technology].get('additional_lefs', False),
             'additional_lef_files': DEFINES_BY_PDK[self.technology].get(
                 'additional_lef_files', []
             ),
-            'additional_libs': False,
+            'additional_libs': DEFINES_BY_PDK[self.technology].get('additional_libs', False),
             'additional_lib_files': DEFINES_BY_PDK[self.technology].get(
                 'additional_lib_files', []
             ),
+            'include_dirs': self.include_dirs,
         }
 
         write_template_to_file(self.env, 'openroad.j2', context, 'openroad.mk')
@@ -62,6 +64,8 @@ class OpenRoadFlow(ImplementationFlow):
         )
 
     def run_tool(self) -> None:
+        ensure_env("CLK_PORT", "clk")
+        
         openroad_path = TOOLCHAINS_INSTALL_PATH.get('openroad', '')
         if not openroad_path or not os.path.exists(openroad_path):
             raise EnvironmentError(
