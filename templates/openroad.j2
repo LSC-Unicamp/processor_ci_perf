@@ -16,9 +16,11 @@ export ADDITIONAL_LEFS = {{ additional_lef_files | join(' \\\n\t') }}
 export ADDITIONAL_LIBS = {{ additional_lib_files | join(' \\\n\t') }}
 {% endif %}
 
-
-export CORE_UTILIZATION       = {{ core_utilization }}
-export PLACE_DENSITY          = {{ place_density }}
+export ABC_AREA           = 1
+export CORE_MARGIN        = 2
+export MACRO_PLACE_HALO   = 3 3
+export CORE_UTILIZATION   = {{ core_utilization }}
+export PLACE_DENSITY      = {{ place_density }}
 
 export SYNTH_HDL_FRONTEND = {{ synth_hdl_frontend }}
 export TNS_END_PERCENT    = 100

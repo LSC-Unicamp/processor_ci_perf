@@ -110,6 +110,9 @@ class VivadoFlow(ImplementationFlow):
         timing_file = os.path.join(
             "reports", f'{self.technology}_timing.rpt'
         )
+        power_file = os.path.join(
+            "reports", f'{self.technology}_power.rpt'
+        )
         util_file_xml = os.path.join(
             "reports", f'{self.technology}_utilization.xml'
         )
@@ -151,6 +154,19 @@ class VivadoFlow(ImplementationFlow):
                             fmax[clk] = 1000.0 / effective_period  # MHz
                     except ValueError:
                         continue
+
+        # --- PARSE POWER SUMMARY for Dynamic and Device Static ---
+        dynamic_w = 0.0
+        device_static_w = 0.0
+        if os.path.exists(power_file):
+            with open(power_file, 'r') as f:
+                content = f.read()
+                dynamic_match = re.search(r'Dynamic \(W\)\s*\|\s*([0-9]*\.?[0-9]+)', content)
+                if dynamic_match:
+                    dynamic_w = float(dynamic_match.group(1))
+                device_static_match = re.search(r'Device Static \(W\)\s*\|\s*([0-9]*\.?[0-9]+)', content)
+                if device_static_match:
+                    device_static_w = float(device_static_match.group(1))
 
         # --- PARSE RESOURCE UTILIZATION XML ---
         resources: Dict[str, int] = {}
@@ -213,6 +229,12 @@ class VivadoFlow(ImplementationFlow):
         for res, used in resources.items():
             print(f'{res:<15} {used:8}')
 
+        # --- PRINT POWER SUMMARY ---
+        print('-' * 30)
+        print_green('Power Summary:')
+        print(f'Dynamic Power (W)      : {dynamic_w}')
+        print(f'Device Static Power (W): {device_static_w}')
+
         print_blue('=' * 60)
         print_green('Flow summary generated successfully')
 
@@ -226,6 +248,12 @@ class VivadoFlow(ImplementationFlow):
             # Resources
             for res, used in resources.items():
                 writer.writerow(['Resource', res, str(used)])
+
+        # --- WRITE CSV --- (adicionar ao final da escrita)
+        with open(csv_file, 'a', newline='') as csvf:  # 'a' para adicionar
+            writer = csv.writer(csvf)
+            writer.writerow(['Power', 'Dynamic (W)', f'{dynamic_w:.3f}'])
+            writer.writerow(['Power', 'Device Static (W)', f'{device_static_w:.3f}'])
 
         print_green(f'CSV summary saved to: {csv_file}')
 
@@ -320,9 +348,7 @@ class YosysFlow(ImplementationFlow):
     def report(self, report_path: str = 'reports') -> None:
 
         print_blue(f"Generating report for board: '{self.technology}'")
-
-        print_red(report_path)
-
+        
         prefix: str = YOSYS_BOARDS[self.technology]['prefix']
         json_report_path: str = f'reports/{prefix}_place_route.json'
         csv_path: str = f'{report_path}/{prefix}_report.csv'
