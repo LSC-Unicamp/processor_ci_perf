@@ -15,11 +15,7 @@ read_vhdl -vhdl2008 {{ f }}
 # include dirs
 
 {% if include_dirs %}
-set_property include_dirs [list 
-{% for dir in include_dirs %}
-"{{ dir }}"
-{% endfor %}
-] [get_filesets sources_1]
+set_property include_dirs [list {{ include_dirs | join(' ') }} ] [get_filesets sources_1]
 {% endif %}
 
 # Constraints

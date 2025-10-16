@@ -10,7 +10,7 @@ SUPPORTED_PDKS = [
 
 DEFINES_BY_PDK = {
     'gf180': {
-        'additional_lefs': True,
+        'additional_lefs': False,
         'additional_libfiles': [],
         'additional_libs': False,
         'additional_lef_files': [
@@ -65,7 +65,7 @@ DEFINES_BY_PDK = {
         ],
     },
     'ihp-sg13g2': {
-        'additional_lefs': True,
+        'additional_lefs': False,
         'additional_lef_files': [
             "lef/bondpad_70x70.lef",
             "lef/RM_IHPSG13_1P_1024x16_c2_bm_bist.lef",
@@ -82,7 +82,7 @@ DEFINES_BY_PDK = {
             "lef/sg13g2_stdcell.lef",
             "lef/sg13g2_tech.lef"
         ],
-        'additional_libs': True,
+        'additional_libs': False,
         'additional_lib_files': [
             "lib/RM_IHPSG13_1P_1024x16_c2_bm_bist_fast_1p32V_m55C.lib",
             "lib/RM_IHPSG13_1P_1024x16_c2_bm_bist_slow_1p08V_125C.lib",
@@ -130,29 +130,29 @@ DEFINES_BY_PDK = {
         ],
     },
     'sky130hs': {
-        'additional_lefs': True,
+        'additional_lefs': False,
         'additional_lef_files': [
             '/path/to/sky130hs/lef/sky130_fd_sc_hd.lef',
         ],
-        'additional_libs': True,
+        'additional_libs': False,
         'additional_lib_files': [
             '/path/to/sky130hs/lib/sky130_fd_sc_hd_typ.lib',
         ],
     },
     'sky130hd': {
-        'additional_lefs': True,
+        'additional_lefs': False,
         'additional_lef_files': [
             "lef/sky130_fd_sc_hd_merged.lef",
             "lef/sky130io_fill.lef"
         ],
-        'additional_libs': True,
+        'additional_libs': False,
         'additional_lib_files': [
             "lib/sky130_dummy_io.lib",
             "lib/sky130_fd_sc_hd__tt_025C_1v80.lib"
         ],
     },
     'nangate45': {
-        'additional_lefs': True,
+        'additional_lefs': False,
         'additional_lef_files': [
             "lef/fakeram45_1024x32.lef",
             "lef/fakeram45_128x116.lef",
@@ -181,7 +181,7 @@ DEFINES_BY_PDK = {
             "lef/NangateOpenCellLibrary.macro.rect.lef",
             "lef/NangateOpenCellLibrary.tech.lef"
         ],
-        'additional_libs': True,
+        'additional_libs': False,
         'additional_lib_files': [
             "lib/fakeram45_1024x32.lib",
             "lib/fakeram45_128x116.lib",
@@ -209,7 +209,7 @@ DEFINES_BY_PDK = {
         ],
     },
     'asap7': {
-        'additional_lefs': True,
+        'additional_lefs': False,
         'additional_lef_files': [
             "lef/asap7sc7p5t_28_L_1x_220121a.lef",
             "lef/asap7sc7p5t_28_R_1x_220121a.lef",
@@ -239,7 +239,7 @@ DEFINES_BY_PDK = {
             "lef/fakeregfile_32x46.lef",
             "lef/fakeregfile_64x64.lef"
             ],
-        'additional_libs': True,
+        'additional_libs': False,
         'additional_lib_files': [
             "lib/NLDM/asap7sc7p5t_DFFHQNH2V2X_LVT_TT_nldm_FAKE.lib",
             "lib/NLDM/asap7sc7p5t_DFHV2X_SLVT_TT_nldm_FAKE.lib",
