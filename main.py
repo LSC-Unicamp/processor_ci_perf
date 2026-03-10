@@ -14,14 +14,26 @@ DEFAULT_PROJECT_PATH = '/eda/processor_ci_perf'
 DEFAULT_CONFIG_PATH = '/eda/processor_ci/config'
 PROCESSOR_CI_PATH = os.getenv('PROCESSOR_CI_PATH', '/eda/processor_ci')
 
+RVB_CORE_NAME = os.environ.get('RVB_CORE_NAME', None)
+RVB_CORE_FOLDER = os.environ.get('RVB_CORE_FOLDER', None)
+RVB_CORE_REPO = os.environ.get('RVB_CORE_REPO', None)
+RVB_CORE_CONFIG = os.environ.get('RVB_CORE_CONFIG', None)
+RVB_BENCH_ROOT = os.environ.get('RVB_BENCH_ROOT', None)
+RVB_FLOW = os.environ.get('RVB_FLOW', None)
+RVB_TECHNOLOGY = os.environ.get('RVB_TECHNOLOGY', None)
+
+
 
 def main() -> None:
+    running_from_rvbench = RVB_CORE_NAME is not None
+
     parser = argparse.ArgumentParser(description='Run FPGA or ASIC flow')
     parser.add_argument(
         '-F',
         '--flow',
         choices=['fpga', 'asic'],
-        required=True,
+        required=not running_from_rvbench,
+        default=os.getenv("RVB_FLOW"),
         help='Flow type to run',
     )
     parser.add_argument(
@@ -30,7 +42,8 @@ def main() -> None:
     parser.add_argument(
         '-t',
         '--technology',
-        required=True,
+        required=not running_from_rvbench,
+        default=os.getenv("RVB_TECHNOLOGY"),
         help='Technology/PDK name for ASIC flow or FPGA platform',
     )
     parser.add_argument(
@@ -97,9 +110,14 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+    
+    if not args.flow:
+        print_red("Error: flow not provided (use -F or RVB_FLOW).")
+        sys.exit(1)
 
     if not args.technology:
         print_red('Error: Technology/PDK name is required.')
+        print_red("Error: technology not provided (use -t or RVB_TECHNOLOGY).")
         sys.exit(1)
 
     if args.files and args.use_config:
@@ -111,14 +129,31 @@ def main() -> None:
     top_module = args.top if args.top else 'processorci_top'
     include_dirs = args.include_dirs if args.include_dirs else []
 
-    if args.use_config:
-        config_data = {}
-        with open(args.config, 'r', encoding='utf-8') as file:
+    config_data = {}
+
+    # Caso esteja rodando pelo RVBench
+    if running_from_rvbench:
+        if not RVB_CORE_CONFIG:
+            print_red("Error: RVB_CORE_CONFIG not defined.")
+            sys.exit(1)
+
+        print_blue(f"[RVBench] Using core config: {RVB_CORE_CONFIG}")
+
+        with open(RVB_CORE_CONFIG, "r", encoding="utf-8") as file:
             config_data = json.load(file)
 
-            files = config_data.get('files', [])
-            include_dirs = config_data.get('include_dirs', [])
-            top_module = config_data.get('top_module', top_module)
+        files = config_data.get("files", [])
+        include_dirs = config_data.get("include_dirs", [])
+        top_module = config_data.get("top_module", top_module)
+
+    # modo manual antigo
+    elif args.use_config:
+        with open(args.config, "r", encoding="utf-8") as file:
+            config_data = json.load(file)
+
+        files = config_data.get("files", [])
+        include_dirs = config_data.get("include_dirs", [])
+        top_module = config_data.get("top_module", top_module)
 
     if args.use_pci_wrapper:
         top_module = 'fpga_top'
