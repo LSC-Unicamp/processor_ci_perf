@@ -7,15 +7,15 @@ from typing import Any, Dict, List, Optional
 
 from jinja2 import Environment, Template
 
-from core.log import print_blue, print_green, print_red, print_yellow
+from processor_ci_perf.core.log import print_blue, print_green, print_red, print_yellow
 
 # Diretórios principais
 CORE_DIR: str = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR: str = os.path.normpath(
-    os.path.join(CORE_DIR, '..', 'templates')
+    os.path.join(CORE_DIR, '..', '..', 'templates')
 )
 CONSTRAINTS_DIR: str = os.path.normpath(
-    os.path.join(CORE_DIR, '..', 'constraints')
+    os.path.join(CORE_DIR, '..', '..', 'constraints')
 )
 
 def ensure_env(var_name: str, default_value: str) -> str:

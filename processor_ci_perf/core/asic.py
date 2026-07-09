@@ -1,20 +1,20 @@
 # core/asic.py
 import os
 import re
-from core import ensure_env
+from processor_ci_perf.core import ensure_env
 from typing import Any, Dict
 
 from jinja2 import Environment, FileSystemLoader
 
-from core import (
+from processor_ci_perf.core import (
     CONSTRAINTS_DIR,
     TEMPLATES_DIR,
     ImplementationFlow,
     run_cmd,
     write_template_to_file,
 )
-from core.log import print_blue, print_green, print_red, print_yellow
-from core.pdk_defines import DEFINES_BY_PDK, SUPPORTED_PDKS
+from processor_ci_perf.core.log import print_blue, print_green, print_red, print_yellow
+from processor_ci_perf.core.pdk_defines import DEFINES_BY_PDK, SUPPORTED_PDKS
 
 TOOLCHAINS_INSTALL_PATH = {
     'openroad': os.getenv(

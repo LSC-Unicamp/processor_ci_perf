@@ -10,21 +10,21 @@ from jinja2 import Environment, FileSystemLoader
 
 CURRENT_DIR: str = os.getcwd()
 
-from core import (
+from processor_ci_perf.core import (
     CONSTRAINTS_DIR,
     TEMPLATES_DIR,
     ImplementationFlow,
     run_cmd,
     write_template_to_file,
 )
-from core.board_defines import (
+from processor_ci_perf.core.board_defines import (
     DEFINES_BY_BOARD,
     GOWIN_BOARDS,
     SUPPORTED_BOARDS,
     VIVADO_BOARDS,
     YOSYS_BOARDS,
 )
-from core.log import print_blue, print_green, print_red, print_yellow
+from processor_ci_perf.core.log import print_blue, print_green, print_red, print_yellow
 
 TOOLCHAINS_INSTALL_PATH = {
     'vivado': os.getenv('VIVADO_INSTALL_PATH', ''),
