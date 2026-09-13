@@ -76,9 +76,21 @@ def write_template_to_file(
     return filename
 
 
-def run_cmd(command: List[str], cwd: Optional[str] = None) -> None:
+def run_cmd(command: List[str], cwd: Optional[str] = None, check: bool = True) -> None:
+    # RV-Bench local patch (not upstream): this used to be `check=False`
+    # unconditionally, which discarded every subprocess's exit code --
+    # `make` genuinely stops at the first failed flow stage (confirmed: a
+    # failed `1_1_yosys_canonicalize` SLANG elaboration leaves no log files
+    # for any later stage), but that failure never reached Python, so
+    # `ImplementationFlow.run()` below proceeded straight to `.report()`
+    # over whatever partial/placeholder results existed, and the caller
+    # recorded a zero-area "success". `check=True` makes `subprocess.run`
+    # raise on a nonzero exit, which now correctly aborts `.run()` before
+    # `.report()` runs. `check=False` is kept available for callers where a
+    # failure is genuinely not fatal -- `.clean()`'s `rm -rf` of files that
+    # may not exist -- which pass it explicitly.
     print_yellow(f"Running command: {' '.join(command)}")
-    subprocess.run(command, cwd=cwd, check=False)
+    subprocess.run(command, cwd=cwd, check=check)
 
 
 # -------------------------

@@ -343,7 +343,7 @@ class YosysFlow(ImplementationFlow):
         )
 
     def clean(self) -> None:
-        run_cmd(['rm', '-rf', 'build', '*.bit', '*.json', '*.rpt', 'slpp_all'])
+        run_cmd(['rm', '-rf', 'build', '*.bit', '*.json', '*.rpt', 'slpp_all'], check=False)
 
     def report(self, report_path: str = 'reports') -> None:
 
@@ -466,7 +466,7 @@ class GowinFlow(ImplementationFlow):
         run_cmd([gowin_bin, 'gowin_project.tcl'])
 
     def clean(self) -> None:
-        run_cmd(['rm', '-rf', 'build', 'reports', '*.jou', '*.log', '*.bit'])
+        run_cmd(['rm', '-rf', 'build', 'reports', '*.jou', '*.log', '*.bit'], check=False)
 
     def report(self, report_path: str = 'reports') -> None:
         pass

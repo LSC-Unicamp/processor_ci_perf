@@ -83,7 +83,7 @@ class OpenRoadFlow(ImplementationFlow):
         )
 
     def clean(self) -> None:
-        run_cmd(['rm', '-rf', 'build', 'reports', '*.jou', '*.log', '*.bit'])
+        run_cmd(['rm', '-rf', 'build', 'reports', '*.jou', '*.log', '*.bit'], check=False)
 
 
     def report(self, report_path: str = 'reports') -> None:
