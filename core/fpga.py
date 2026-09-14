@@ -277,7 +277,12 @@ class YosysFlow(ImplementationFlow):
             'files': self.project_files,
             'top_module': self.top_module,
             'output_json': output_json,
-            'include_dirs': include_dirs_str,
+            # Was 'include_dirs' -- templates/yosys.j2 reads
+            # {{ include_dirs_str }}, so the mismatched key rendered as
+            # empty for every job regardless of what --include-dirs passed.
+            # Patched locally, not upstream, per RV-Bench's convention for
+            # this submodule (see run_cmd() in core/__init__.py).
+            'include_dirs_str': include_dirs_str,
         }
 
         write_template_to_file(
