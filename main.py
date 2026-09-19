@@ -108,6 +108,18 @@ def main() -> None:
         default=[],
         help='List of directories to include in the flow',
     )
+    parser.add_argument(
+        '--slang-args',
+        type=str,
+        default='',
+        help=(
+            'Extra flags passed to the ASIC flow\'s SLANG frontend '
+            '(ORFS SYNTH_SLANG_ARGS), as one space-separated string, e.g. '
+            '"--ignore-initial --ignore-timing". A single string, not '
+            'nargs="+", because the values themselves start with "--" and '
+            'argparse would otherwise try to parse them as new options.'
+        ),
+    )
 
     args = parser.parse_args()
     
@@ -197,6 +209,7 @@ def main() -> None:
             clean=args.clean,
             report_path=args.report_path,
             include_dirs=include_dirs,
+            slang_args=args.slang_args.split(),
         )
 
 

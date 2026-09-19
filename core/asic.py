@@ -56,6 +56,7 @@ class OpenRoadFlow(ImplementationFlow):
                 'additional_lib_files', []
             ),
             'include_dirs': self.include_dirs,
+            'synth_slang_args': ' '.join(getattr(self, 'slang_args', [])),
         }
 
         write_template_to_file(self.env, 'openroad.j2', context, 'openroad.mk')
@@ -178,6 +179,7 @@ def run_asic_flow(
     get_reports: bool = False,
     clean: bool = False,
     report_path: str = 'reports',
+    slang_args: list[str] | None = None,
 ) -> None:
     pdk_name = pdk_name.lower()
     if pdk_name not in SUPPORTED_PDKS:
@@ -199,6 +201,7 @@ def run_asic_flow(
         env=env,
         include_dirs=include_dirs,
     )
+    flow.slang_args = slang_args or []
 
     flow.run()
 

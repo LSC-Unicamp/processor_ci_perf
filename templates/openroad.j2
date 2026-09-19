@@ -12,6 +12,10 @@ export VERILOG_INCLUDE_DIRS = {{ include_dirs | join(' \\\n\t') }}
 export VERILOG_FILES = {{ verilog_files | join(' \\\n\t') }}
 export SDC_FILE      = {{ sdc_file }}
 
+{% if synth_slang_args %}
+export SYNTH_SLANG_ARGS = {{ synth_slang_args }}
+{% endif %}
+
 {% if additional_lefs == true %}
 export ADDITIONAL_LEFS = $(PLATFORM_DIR)/{{ additional_lef_files | join(' \\\n\t$(PLATFORM_DIR)/') }}
 {% endif %}
