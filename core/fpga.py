@@ -269,10 +269,17 @@ class YosysFlow(ImplementationFlow):
             f"build/{YOSYS_BOARDS[self.technology]['prefix']}.synth.json"
         )
 
+        # An already-absolute d (e.g. RV-Bench's synth-fpga always resolves
+        # against the materialised source root) must not be prefixed with
+        # CURRENT_DIR too -- that produced a double-concatenated, unresolvable
+        # path (CURRENT_DIR + '/' + an absolute path) for every caller that
+        # passes absolute include dirs, silently breaking --include-dirs
+        # whenever a core's top-level file `include`s a sibling header.
         include_dirs_str = ' '.join(
-        f'-I{CURRENT_DIR}/{d}' for d in self.include_dirs
-    )
-        
+            f'-I{d}' if os.path.isabs(d) else f'-I{CURRENT_DIR}/{d}'
+            for d in self.include_dirs
+        )
+
         context: Dict[str, Any] = {
             'files': self.project_files,
             'top_module': self.top_module,
