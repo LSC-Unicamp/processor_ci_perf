@@ -1,7 +1,13 @@
 # === Ler arquivos SystemVerilog com defer ===
-{% for f in files %}
-yosys read_systemverilog {{ include_dirs_str }} -defer {{ f }}
-{% endfor %}
+# One call for every file, not one call per file: each separate
+# read_systemverilog invocation is its own SystemVerilog compilation unit, so a
+# macro or package that one file defines and a sibling file relies on without
+# its own `include`/import (the common "flat compile" convention many of these
+# repositories were written and tested against, e.g. `iverilog *.v`) was
+# invisible across files -- confirmed against RV-Bench's corpus: reading all
+# files together resolves it, the same effect --single-unit has in tools that
+# offer that flag natively (this Surelog-based frontend does not).
+yosys read_systemverilog {{ include_dirs_str }} -defer {{ files | join(' ') }}
 
 # Linkar todos os módulos
 yosys read_systemverilog -link
