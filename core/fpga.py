@@ -290,6 +290,11 @@ class YosysFlow(ImplementationFlow):
             # Patched locally, not upstream, per RV-Bench's convention for
             # this submodule (see run_cmd() in core/__init__.py).
             'include_dirs_str': include_dirs_str,
+            # Same shape as OpenRoadFlow's synth_slang_args (core/asic.py) --
+            # extra flags for this flow's own SystemVerilog frontend
+            # (synlig/Surelog's read_systemverilog, not SLANG -- different
+            # tool, different flag surface, hence the separate name).
+            'synth_synlig_args': ' '.join(getattr(self, 'synlig_args', [])),
         }
 
         write_template_to_file(
@@ -523,6 +528,7 @@ def run_fpga_flow(
     get_reports: bool = False,
     clean: bool = False,
     report_path: str = 'reports',
+    synlig_args: list[str] | None = None,
 ) -> None:
     board_name = board_name.lower()
 
@@ -545,6 +551,7 @@ def run_fpga_flow(
         include_dirs=include_dirs,
         env=env,
     )
+    flow.synlig_args = synlig_args or []
     flow.run()
 
     if get_reports:

@@ -7,7 +7,7 @@
 # invisible across files -- confirmed against RV-Bench's corpus: reading all
 # files together resolves it, the same effect --single-unit has in tools that
 # offer that flag natively (this Surelog-based frontend does not).
-yosys read_systemverilog {{ include_dirs_str }} -defer {{ files | join(' ') }}
+yosys read_systemverilog {{ include_dirs_str }} {{ synth_synlig_args }} -defer {{ files | join(' ') }}
 
 # Linkar todos os módulos
 yosys read_systemverilog -link

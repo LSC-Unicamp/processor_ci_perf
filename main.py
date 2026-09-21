@@ -120,6 +120,18 @@ def main() -> None:
             'argparse would otherwise try to parse them as new options.'
         ),
     )
+    parser.add_argument(
+        '--synlig-args',
+        type=str,
+        default='',
+        help=(
+            'Extra flags passed to the FPGA (Yosys) flow\'s synlig/Surelog '
+            'frontend (read_systemverilog), as one space-separated string, '
+            'e.g. "-noassert". Same shape as --slang-args, for the same '
+            'reason -- a different tool with a different flag surface, so a '
+            'separate flag rather than reusing --slang-args.'
+        ),
+    )
 
     args = parser.parse_args()
     
@@ -199,6 +211,7 @@ def main() -> None:
             clean=args.clean,
             report_path=args.report_path,
             include_dirs=include_dirs,
+            synlig_args=args.synlig_args.split(),
         )
     else:
         run_asic_flow(
