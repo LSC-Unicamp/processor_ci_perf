@@ -48,6 +48,9 @@ class OpenRoadFlow(ImplementationFlow):
             'sdc_file': constraints,
             'design_nickname': self.top_module,
             'platform': self.technology,
+            # IHP's PDN ring extends well beyond the default 2 um margin.
+            # Keep the other platforms' established floorplan dimensions.
+            'core_margin': 20 if self.technology == 'ihp-sg13g2' else 2,
             'core_utilization': 5,
             'place_density': 0.10,
             'synth_hdl_frontend': 'slang',

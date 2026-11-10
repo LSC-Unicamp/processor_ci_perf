@@ -39,6 +39,17 @@ def test_asic_filelist_and_slang_flags_reach_makefile(tmp_path, monkeypatch):
     assert "--ignore-initial --diag-json " in makefile
     assert "--error-limit 0 -F $(VERILOG_FILES_FILE)" in makefile
     assert "VERILOG_TOP_PARAMS = DEPTH 16" in makefile
+    assert "CORE_MARGIN        = 2" in makefile
+
+
+def test_ihp_pdn_ring_receives_sufficient_die_margin(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    flow = OpenRoadFlow(
+        technology="ihp-sg13g2", project_files=[], constraint_file="default",
+        top_module="core", include_dirs=[], env=_environment(),
+    )
+    flow.generate_project()
+    assert "CORE_MARGIN        = 20" in (tmp_path / "openroad.mk").read_text()
 
 
 def test_asic_requests_reports_without_gds(tmp_path, monkeypatch):

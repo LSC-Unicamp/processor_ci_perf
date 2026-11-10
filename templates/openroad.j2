@@ -30,7 +30,7 @@ export ADDITIONAL_LIBS = $(PLATFORM_DIR)/{{ additional_lib_files | join(' \\\n\t
 {% endif %}
 
 export ABC_AREA           = 1
-export CORE_MARGIN        = 2
+export CORE_MARGIN        = {{ core_margin }}
 export MACRO_PLACE_HALO   = 3 3
 export CORE_UTILIZATION   = {{ core_utilization }}
 export PLACE_DENSITY      = {{ place_density }}
