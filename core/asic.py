@@ -85,6 +85,11 @@ class OpenRoadFlow(ImplementationFlow):
                 'make',
                 f'--file={openroad_makefile_path}',
                 'DESIGN_CONFIG=openroad.mk',
+                # ORFS's `finish` also depends on GDS and KLayout. RV-Bench
+                # measures the routed report, so run the same stages through
+                # do-finish without the layout export target.
+                'check-yosys', 'check-openroad', 'synth', 'floorplan',
+                'place', 'cts', 'route', 'do-finish',
             ]
         )
 

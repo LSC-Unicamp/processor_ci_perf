@@ -41,6 +41,27 @@ def test_asic_filelist_and_slang_flags_reach_makefile(tmp_path, monkeypatch):
     assert "VERILOG_TOP_PARAMS = DEPTH 16" in makefile
 
 
+def test_asic_requests_reports_without_gds(tmp_path, monkeypatch):
+    from core import asic
+
+    flow_root = tmp_path / "orfs"
+    (flow_root / "flow").mkdir(parents=True)
+    (flow_root / "flow/Makefile").write_text("finish:\n\t@true\n")
+    monkeypatch.setitem(asic.TOOLCHAINS_INSTALL_PATH, "openroad", str(flow_root))
+    commands = []
+    monkeypatch.setattr(asic, "run_cmd", lambda command: commands.append(command))
+    flow = OpenRoadFlow(
+        technology="asap7", project_files=[], constraint_file="default",
+        top_module="core", include_dirs=[], env=_environment(),
+    )
+    flow.run_tool()
+    assert commands == [[
+        "make", f"--file={flow_root / 'flow/Makefile'}",
+        "DESIGN_CONFIG=openroad.mk", "check-yosys", "check-openroad",
+        "synth", "floorplan", "place", "cts", "route", "do-finish",
+    ]]
+
+
 def test_fpga_includes_and_flags_reach_one_compilation_unit(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     include = tmp_path / "rtl"
