@@ -280,6 +280,7 @@ class YosysFlow(ImplementationFlow):
             'output_json': output_json,
             'include_dirs_str': include_dirs_str,
             'synth_synlig_args': ' '.join(getattr(self, 'synlig_args', [])),
+            'frontend': getattr(self, 'frontend', 'synlig'),
         }
 
         write_template_to_file(
@@ -299,7 +300,11 @@ class YosysFlow(ImplementationFlow):
 
         yosys_path = TOOLCHAINS_INSTALL_PATH.get('yosys', '')
 
-        yosys_bin = os.getenv('SYNLIG_EXE') or os.path.join(yosys_path, 'synlig') or 'synlig'
+        frontend = getattr(self, 'frontend', 'synlig')
+        if frontend == 'yosys':
+            yosys_bin = os.getenv('YOSYS_EXE') or os.path.join(yosys_path, 'yosys')
+        else:
+            yosys_bin = os.getenv('SYNLIG_EXE') or os.path.join(yosys_path, 'synlig')
         nextpnr_bin = (os.getenv('NEXTPNR_ECP5_EXE') or
                        os.path.join(yosys_path, 'nextpnr-ecp5') or 'nextpnr-ecp5')
         ecppack_bin = (os.getenv('ECPPACK_EXE') or
@@ -516,6 +521,7 @@ def run_fpga_flow(
     report_path: str = 'reports',
     synlig_args: list[str] | None = None,
     nextpnr_args: list[str] | None = None,
+    frontend: str = 'synlig',
 ) -> None:
     board_name = board_name.lower()
 
@@ -540,6 +546,7 @@ def run_fpga_flow(
     )
     flow.synlig_args = synlig_args or []
     flow.nextpnr_args = nextpnr_args or []
+    flow.frontend = frontend
     flow.run()
 
     if get_reports:

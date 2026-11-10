@@ -78,3 +78,22 @@ def test_fpga_uses_explicit_locked_executables(monkeypatch):
     assert [command[0] for command in calls] == [
         '/locked/synlig', '/locked/nextpnr-ecp5', '/locked/ecppack']
     assert '--ignore-loops' in calls[1]
+
+
+def test_fpga_native_yosys_frontend(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('YOSYS_EXE', '/locked/yosys')
+    calls = []
+    monkeypatch.setattr('core.fpga.run_cmd', lambda command: calls.append(command))
+    flow = YosysFlow(
+        technology='colorlight_i9', project_files=['/src/core.v'],
+        constraint_file='default', top_module='core',
+        include_dirs=['/src'], env=_environment(),
+    )
+    flow.frontend = 'yosys'
+    flow.generate_project()
+    script = (tmp_path / 'yosys_project.tcl').read_text()
+    assert 'read_verilog -sv -I/src /src/core.v' in script
+    assert 'read_systemverilog' not in script
+    flow.run_tool()
+    assert calls[0][0] == '/locked/yosys'

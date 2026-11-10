@@ -55,6 +55,8 @@ def main() -> None:
     parser.add_argument('--slang-args', default='', help='ASIC SLANG frontend arguments')
     parser.add_argument('--synlig-args', default='', help='FPGA Synlig frontend arguments')
     parser.add_argument('--nextpnr-args', default='', help='FPGA nextpnr arguments')
+    parser.add_argument('--fpga-frontend', choices=['synlig', 'yosys'],
+                        default='synlig', help='FPGA RTL frontend')
     parser.add_argument('--top-params', nargs='+', default=[],
                         help='ASIC top-module overrides as NAME=VALUE tokens')
     parser.add_argument(
@@ -208,6 +210,7 @@ def main() -> None:
             include_dirs=include_dirs,
             synlig_args=shlex.split(args.synlig_args),
             nextpnr_args=shlex.split(args.nextpnr_args),
+            frontend=args.fpga_frontend,
         )
     else:
         run_asic_flow(

@@ -1,8 +1,12 @@
+{% if frontend == 'yosys' %}
+yosys read_verilog -sv {{ include_dirs_str }} {{ files | join(' ') }}
+{% else %}
 # === Ler arquivos SystemVerilog com defer ===
 yosys read_systemverilog {{ include_dirs_str }} {{ synth_synlig_args }} -defer {{ files | join(' ') }}
 
 # Linkar todos os módulos
 yosys read_systemverilog -link
+{% endif %}
 
 # Síntese para ECP5
 yosys synth_ecp5 -json {{ output_json }} -top {{ top_module }} -abc9
