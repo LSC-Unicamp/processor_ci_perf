@@ -9,8 +9,17 @@ export SYNTH_MINIMUM_KEEP_SIZE ?= {{ synth_min_keep_size }}
 export VERILOG_INCLUDE_DIRS = {{ include_dirs | join(' \\\n\t') }}
 {% endif %}
 
+{% if verilog_files_file %}
+export VERILOG_FILES_FILE = {{ verilog_files_file }}
+export VERILOG_FILES =
+{% else %}
 export VERILOG_FILES = {{ verilog_files | join(' \\\n\t') }}
+{% endif %}
 export SDC_FILE      = {{ sdc_file }}
+
+{% if synth_slang_args or verilog_files_file %}
+export SYNTH_SLANG_ARGS = {{ synth_slang_args }} {% if verilog_files_file %}-F $(VERILOG_FILES_FILE){% endif %}
+{% endif %}
 
 {% if additional_lefs == true %}
 export ADDITIONAL_LEFS = $(PLATFORM_DIR)/{{ additional_lef_files | join(' \\\n\t$(PLATFORM_DIR)/') }}
@@ -25,6 +34,10 @@ export CORE_MARGIN        = 2
 export MACRO_PLACE_HALO   = 3 3
 export CORE_UTILIZATION   = {{ core_utilization }}
 export PLACE_DENSITY      = {{ place_density }}
+
+{% if verilog_top_params %}
+export VERILOG_TOP_PARAMS = {% for name, value in verilog_top_params %}{{ name }} {{ value }} {% endfor %}
+{% endif %}
 
 export SYNTH_HDL_FRONTEND = {{ synth_hdl_frontend }}
 export TNS_END_PERCENT    = 100

@@ -39,6 +39,11 @@ class OpenRoadFlow(ImplementationFlow):
         context: Dict[str, Any] = {
             'design_name': self.top_module,
             'verilog_files': self.project_files,
+            'verilog_files_file': getattr(self, 'filelist', None),
+            'synth_slang_args': ' '.join(getattr(self, 'slang_args', [])),
+            'verilog_top_params': [
+                token.split('=', 1) for token in getattr(self, 'top_params', [])
+            ],
             'sdc_file': constraints,
             'design_nickname': self.top_module,
             'platform': self.technology,
@@ -178,6 +183,9 @@ def run_asic_flow(
     get_reports: bool = False,
     clean: bool = False,
     report_path: str = 'reports',
+    slang_args: list[str] | None = None,
+    filelist: str | None = None,
+    top_params: list[str] | None = None,
 ) -> None:
     pdk_name = pdk_name.lower()
     if pdk_name not in SUPPORTED_PDKS:
@@ -199,6 +207,9 @@ def run_asic_flow(
         env=env,
         include_dirs=include_dirs,
     )
+    flow.slang_args = slang_args or []
+    flow.filelist = filelist
+    flow.top_params = top_params or []
 
     flow.run()
 

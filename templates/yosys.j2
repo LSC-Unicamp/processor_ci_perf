@@ -1,7 +1,5 @@
 # === Ler arquivos SystemVerilog com defer ===
-{% for f in files %}
-yosys read_systemverilog {{ include_dirs_str }} -defer {{ f }}
-{% endfor %}
+yosys read_systemverilog {{ include_dirs_str }} {{ synth_synlig_args }} -defer {{ files | join(' ') }}
 
 # Linkar todos os módulos
 yosys read_systemverilog -link

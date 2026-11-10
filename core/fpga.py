@@ -270,14 +270,16 @@ class YosysFlow(ImplementationFlow):
         )
 
         include_dirs_str = ' '.join(
-        f'-I{CURRENT_DIR}/{d}' for d in self.include_dirs
-    )
+            f'-I{d}' if os.path.isabs(d) else f'-I{CURRENT_DIR}/{d}'
+            for d in self.include_dirs
+        )
         
         context: Dict[str, Any] = {
             'files': self.project_files,
             'top_module': self.top_module,
             'output_json': output_json,
-            'include_dirs': include_dirs_str,
+            'include_dirs_str': include_dirs_str,
+            'synth_synlig_args': ' '.join(getattr(self, 'synlig_args', [])),
         }
 
         write_template_to_file(
@@ -511,6 +513,7 @@ def run_fpga_flow(
     get_reports: bool = False,
     clean: bool = False,
     report_path: str = 'reports',
+    synlig_args: list[str] | None = None,
 ) -> None:
     board_name = board_name.lower()
 
@@ -533,6 +536,7 @@ def run_fpga_flow(
         include_dirs=include_dirs,
         env=env,
     )
+    flow.synlig_args = synlig_args or []
     flow.run()
 
     if get_reports:

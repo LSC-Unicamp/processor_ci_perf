@@ -2,6 +2,8 @@
 import argparse
 import json
 import os
+import re
+import shlex
 import sys
 
 from core.asic import run_asic_flow
@@ -49,6 +51,11 @@ def main() -> None:
     parser.add_argument(
         '-f', '--files', nargs='+', default=[], help='List of project files'
     )
+    parser.add_argument('--filelist', help='ASIC SLANG file list, one source per line')
+    parser.add_argument('--slang-args', default='', help='ASIC SLANG frontend arguments')
+    parser.add_argument('--synlig-args', default='', help='FPGA Synlig frontend arguments')
+    parser.add_argument('--top-params', nargs='+', default=[],
+                        help='ASIC top-module overrides as NAME=VALUE tokens')
     parser.add_argument(
         '-p',
         '--constraint',
@@ -110,6 +117,15 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+    if args.filelist and (args.files or args.use_config):
+        parser.error('--filelist cannot be combined with --files or --use-config')
+    if args.filelist and not os.path.isfile(args.filelist):
+        parser.error(f'file list not found: {args.filelist}')
+    if args.top_params and args.flow != 'asic':
+        parser.error('--top-params is only supported by the ASIC flow')
+    if any(not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*=\S+', item)
+           for item in args.top_params):
+        parser.error('--top-params requires NAME=VALUE tokens')
     
     if not args.flow:
         print_red("Error: flow not provided (use -F or RVB_FLOW).")
@@ -179,6 +195,8 @@ def main() -> None:
         )
 
     if args.flow == 'fpga':
+        if args.filelist:
+            parser.error('--filelist is only supported by the ASIC flow')
         run_fpga_flow(
             args.technology,
             files,
@@ -187,6 +205,7 @@ def main() -> None:
             clean=args.clean,
             report_path=args.report_path,
             include_dirs=include_dirs,
+            synlig_args=shlex.split(args.synlig_args),
         )
     else:
         run_asic_flow(
@@ -197,6 +216,9 @@ def main() -> None:
             clean=args.clean,
             report_path=args.report_path,
             include_dirs=include_dirs,
+            slang_args=shlex.split(args.slang_args),
+            filelist=args.filelist,
+            top_params=args.top_params,
         )
 
 

@@ -78,7 +78,7 @@ def write_template_to_file(
 
 def run_cmd(command: List[str], cwd: Optional[str] = None) -> None:
     print_yellow(f"Running command: {' '.join(command)}")
-    subprocess.run(command, cwd=cwd, check=False)
+    subprocess.run(command, cwd=cwd, check=True)
 
 
 # -------------------------
