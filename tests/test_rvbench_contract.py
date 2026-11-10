@@ -60,3 +60,19 @@ def test_fpga_includes_and_flags_reach_one_compilation_unit(tmp_path, monkeypatc
     assert f"-I{tmp_path}/{include}" not in lines[0]
     assert "-noassert" in lines[0]
     assert "/src/a.sv /src/b.sv" in lines[0]
+
+
+def test_fpga_uses_explicit_locked_executables(monkeypatch):
+    calls = []
+    monkeypatch.setattr('core.fpga.run_cmd', lambda command: calls.append(command))
+    monkeypatch.setenv('SYNLIG_EXE', '/locked/synlig')
+    monkeypatch.setenv('NEXTPNR_ECP5_EXE', '/locked/nextpnr-ecp5')
+    monkeypatch.setenv('ECPPACK_EXE', '/locked/ecppack')
+    flow = YosysFlow(
+        technology='colorlight_i9', project_files=['/src/core.sv'],
+        constraint_file='default', top_module='core',
+        include_dirs=[], env=_environment(),
+    )
+    flow.run_tool()
+    assert [command[0] for command in calls] == [
+        '/locked/synlig', '/locked/nextpnr-ecp5', '/locked/ecppack']

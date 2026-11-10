@@ -299,11 +299,11 @@ class YosysFlow(ImplementationFlow):
 
         yosys_path = TOOLCHAINS_INSTALL_PATH.get('yosys', '')
 
-        yosys_bin = os.path.join(yosys_path, 'synlig') or 'synlig'
-        nextpnr_bin = (
-            os.path.join(yosys_path, 'nextpnr-ecp5') or 'nextpnr-ecp5'
-        )
-        ecppack_bin = os.path.join(yosys_path, 'ecppack') or 'ecppack'
+        yosys_bin = os.getenv('SYNLIG_EXE') or os.path.join(yosys_path, 'synlig') or 'synlig'
+        nextpnr_bin = (os.getenv('NEXTPNR_ECP5_EXE') or
+                       os.path.join(yosys_path, 'nextpnr-ecp5') or 'nextpnr-ecp5')
+        ecppack_bin = (os.getenv('ECPPACK_EXE') or
+                       os.path.join(yosys_path, 'ecppack') or 'ecppack')
 
         run_cmd(
             [
