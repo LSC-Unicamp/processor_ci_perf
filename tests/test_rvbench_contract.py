@@ -73,6 +73,8 @@ def test_fpga_uses_explicit_locked_executables(monkeypatch):
         constraint_file='default', top_module='core',
         include_dirs=[], env=_environment(),
     )
+    flow.nextpnr_args = ['--ignore-loops']
     flow.run_tool()
     assert [command[0] for command in calls] == [
         '/locked/synlig', '/locked/nextpnr-ecp5', '/locked/ecppack']
+    assert '--ignore-loops' in calls[1]

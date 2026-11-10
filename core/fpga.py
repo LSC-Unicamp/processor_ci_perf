@@ -330,6 +330,7 @@ class YosysFlow(ImplementationFlow):
                 '--lpf-allow-unconstrained',
                 '--report',
                 f'reports/{prefix}_place_route.json',
+                *getattr(self, 'nextpnr_args', []),
             ]
         )
 
@@ -514,6 +515,7 @@ def run_fpga_flow(
     clean: bool = False,
     report_path: str = 'reports',
     synlig_args: list[str] | None = None,
+    nextpnr_args: list[str] | None = None,
 ) -> None:
     board_name = board_name.lower()
 
@@ -537,6 +539,7 @@ def run_fpga_flow(
         env=env,
     )
     flow.synlig_args = synlig_args or []
+    flow.nextpnr_args = nextpnr_args or []
     flow.run()
 
     if get_reports:
