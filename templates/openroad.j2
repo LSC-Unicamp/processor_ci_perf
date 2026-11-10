@@ -17,8 +17,8 @@ export VERILOG_FILES = {{ verilog_files | join(' \\\n\t') }}
 {% endif %}
 export SDC_FILE      = {{ sdc_file }}
 
-{% if synth_slang_args or verilog_files_file %}
-export SYNTH_SLANG_ARGS = {{ synth_slang_args }} {% if verilog_files_file %}-F $(VERILOG_FILES_FILE){% endif %}
+{% if synth_slang_args or slang_diag_json or verilog_files_file %}
+export SYNTH_SLANG_ARGS = {{ synth_slang_args }} {% if slang_diag_json %}--diag-json {{ slang_diag_json }} --error-limit 0{% endif %} {% if verilog_files_file %}-F $(VERILOG_FILES_FILE){% endif %}
 {% endif %}
 
 {% if additional_lefs == true %}

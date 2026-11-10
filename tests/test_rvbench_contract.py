@@ -23,6 +23,7 @@ def test_failing_subprocess_aborts_flow():
 
 def test_asic_filelist_and_slang_flags_reach_makefile(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("RVB_SLANG_DIAG_JSON", str(tmp_path / "slang.json"))
     filelist = tmp_path / "source.f"
     filelist.write_text("/src/core.sv\n")
     flow = OpenRoadFlow(
@@ -35,7 +36,8 @@ def test_asic_filelist_and_slang_flags_reach_makefile(tmp_path, monkeypatch):
     flow.generate_project()
     makefile = (tmp_path / "openroad.mk").read_text()
     assert f"VERILOG_FILES_FILE = {filelist}" in makefile
-    assert "SYNTH_SLANG_ARGS = --ignore-initial -F $(VERILOG_FILES_FILE)" in makefile
+    assert "--ignore-initial --diag-json " in makefile
+    assert "--error-limit 0 -F $(VERILOG_FILES_FILE)" in makefile
     assert "VERILOG_TOP_PARAMS = DEPTH 16" in makefile
 
 

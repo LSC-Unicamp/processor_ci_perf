@@ -41,6 +41,7 @@ class OpenRoadFlow(ImplementationFlow):
             'verilog_files': self.project_files,
             'verilog_files_file': getattr(self, 'filelist', None),
             'synth_slang_args': ' '.join(getattr(self, 'slang_args', [])),
+            'slang_diag_json': os.environ.get('RVB_SLANG_DIAG_JSON', ''),
             'verilog_top_params': [
                 token.split('=', 1) for token in getattr(self, 'top_params', [])
             ],
