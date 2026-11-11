@@ -58,7 +58,7 @@ def main() -> None:
     parser.add_argument('--fpga-frontend', choices=['synlig', 'yosys'],
                         default='synlig', help='FPGA RTL frontend')
     parser.add_argument('--top-params', nargs='+', default=[],
-                        help='ASIC top-module overrides as NAME=VALUE tokens')
+                        help='Top-module overrides as NAME=VALUE tokens')
     parser.add_argument(
         '-p',
         '--constraint',
@@ -124,8 +124,6 @@ def main() -> None:
         parser.error('--filelist cannot be combined with --files or --use-config')
     if args.filelist and not os.path.isfile(args.filelist):
         parser.error(f'file list not found: {args.filelist}')
-    if args.top_params and args.flow != 'asic':
-        parser.error('--top-params is only supported by the ASIC flow')
     if any(not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*=\S+', item)
            for item in args.top_params):
         parser.error('--top-params requires NAME=VALUE tokens')
@@ -211,6 +209,7 @@ def main() -> None:
             synlig_args=shlex.split(args.synlig_args),
             nextpnr_args=shlex.split(args.nextpnr_args),
             frontend=args.fpga_frontend,
+            top_params=args.top_params,
         )
     else:
         run_asic_flow(

@@ -84,6 +84,7 @@ def test_fpga_includes_and_flags_reach_one_compilation_unit(tmp_path, monkeypatc
         include_dirs=[str(include)], env=_environment(),
     )
     flow.synlig_args = ["-noassert"]
+    flow.top_params = ["DEPTH=16", "ENABLE=1"]
     flow.generate_project()
     script = (tmp_path / "yosys_project.tcl").read_text()
     lines = [line for line in script.splitlines() if "read_systemverilog" in line]
@@ -92,6 +93,7 @@ def test_fpga_includes_and_flags_reach_one_compilation_unit(tmp_path, monkeypatc
     assert f"-I{tmp_path}/{include}" not in lines[0]
     assert "-noassert" in lines[0]
     assert "/src/a.sv /src/b.sv" in lines[0]
+    assert "yosys chparam -set DEPTH 16 -set ENABLE 1 core" in script
 
 
 def test_fpga_uses_explicit_locked_executables(monkeypatch):

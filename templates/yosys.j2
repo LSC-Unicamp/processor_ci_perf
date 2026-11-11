@@ -8,5 +8,10 @@ yosys read_systemverilog {{ include_dirs_str }} {{ synth_synlig_args }} -defer {
 yosys read_systemverilog -link
 {% endif %}
 
+{% if top_params %}
+# Apply the reviewed named core preset before technology mapping.
+yosys chparam {% for name, value in top_params %}-set {{ name }} {{ value }} {% endfor %}{{ top_module }}
+{% endif %}
+
 # Síntese para ECP5
 yosys synth_ecp5 -json {{ output_json }} -top {{ top_module }} -abc9

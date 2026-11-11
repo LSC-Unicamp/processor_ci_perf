@@ -281,6 +281,7 @@ class YosysFlow(ImplementationFlow):
             'include_dirs_str': include_dirs_str,
             'synth_synlig_args': ' '.join(getattr(self, 'synlig_args', [])),
             'frontend': getattr(self, 'frontend', 'synlig'),
+            'top_params': [token.split('=', 1) for token in getattr(self, 'top_params', [])],
         }
 
         write_template_to_file(
@@ -522,6 +523,7 @@ def run_fpga_flow(
     synlig_args: list[str] | None = None,
     nextpnr_args: list[str] | None = None,
     frontend: str = 'synlig',
+    top_params: list[str] | None = None,
 ) -> None:
     board_name = board_name.lower()
 
@@ -547,6 +549,7 @@ def run_fpga_flow(
     flow.synlig_args = synlig_args or []
     flow.nextpnr_args = nextpnr_args or []
     flow.frontend = frontend
+    flow.top_params = top_params or []
     flow.run()
 
     if get_reports:
