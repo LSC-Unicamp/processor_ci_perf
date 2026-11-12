@@ -19,11 +19,39 @@ set_property include_dirs [list {{ include_dirs | join(' ') }} ] [get_filesets s
 {% endif %}
 
 # Constraints
+# RV-Bench local patch: the metrics variant builds the core's own top; the
+# board's pin constraints target fpga_top's ports and a board clock port, none
+# of which exist in a bare core, so reading them there is noise (and, with no
+# clock on the core's own clock pin, place_design then fails with
+# [Place 30-188] "UnBuffered IOs"). Only the hardware variant, whose top is
+# fpga_top, reads them.
+{% if bitstream %}
 read_xdc "{{ constraints }}"
 set_property PROCESSING_ORDER EARLY [get_files {{ constraints }}]
+{% else %}
+# (metrics: no board XDC -- see below)
+{% endif %}
 
 # Synthesis
-synth_design -top "{{ top_module }}" -part "{{ fpga_part }}"
+# RV-Bench local patch: the metrics variant's core top has no board pin
+# constraints and, for a wide interface, more ports than the device has pins
+# -- in-context opt_design/place_design then fail with [Place 30-415] /
+# [Place 30-58] "IO Placement failed due to overutilization", even though the
+# metric it exists to collect is logic utilisation and timing. Build it
+# out-of-context there: that skips IO buffer insertion and IO placement
+# outright, so P&R only has to place the core's own logic. The hardware
+# variant keeps the normal in-context flow (fpga_top is pin-constrained, and
+# there the bitstream really is the point).
+{% if bitstream %}synth_design -top "{{ top_module }}" -part "{{ fpga_part }}"
+{% else %}synth_design -top "{{ top_module }}" -part "{{ fpga_part }}" -mode out_of_context
+# Out-of-context synthesis inserts no clock buffer, so constrain whatever
+# clock-looking input port(s) the core exposes itself, purely so the placer
+# has a clock to time against; cores with no such port still report
+# utilisation.
+foreach clk [get_ports -quiet -filter {DIRECTION == IN && (name =~ "*clk*" || name =~ "*clock*" || name =~ "*CLK*" || name =~ "*CLOCK*")}] {
+    create_clock -name $clk -period 10.0 $clk
+}
+{% endif %}
 
 # Place and Route
 opt_design
@@ -50,6 +78,13 @@ report_timing_summary    -no_header -file reports/{{ prefix }}_timing_resumed.rp
 
 
 # Bitstream
+{% if bitstream %}
 write_bitstream -force "{{ prefix }}.bit"
+{% else %}
+# RV-Bench local patch: metrics-only run, no bitstream. The core's own top
+# has no board pin constraints, so write_bitstream would fail DRC (NSTD-1 /
+# UCIO-1) for a wide interface; the utilisation and timing reports are
+# already written above.
+{% endif %}
 
 exit

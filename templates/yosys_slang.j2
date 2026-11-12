@@ -1,0 +1,31 @@
+# RV-Bench local addition (not upstream): third fallback flow for cores the
+# Surelog/synlig frontend cannot handle at all, and whose SystemVerilog is
+# too modern for Yosys's own `read_verilog -sv` parser (package imports inside
+# modules, `OP_CAST`, `TOK_PACKAGESEP`, ...).
+#
+# Slang's frontend (the `slang` plugin, same one the ASIC flow uses) accepts
+# full SystemVerilog and is a drop-in replacement for the read step.  It is
+# only shipped with the RV-Bench toolchain's `oss-cad-suite` Yosys, so
+# YosysFlow.run_tool() runs it with that binary, not the system `synlig`.
+#
+# Reached only after both the Surelog and the plain `read_verilog` projects
+# have failed, so cores that already synthesise are untouched.
+#
+# RV-Bench local addition (not upstream): `--single-unit` is what makes the
+# read equivalent to the other two frontends.  Slang treats each file as its
+# own compilation unit by default, so a `` `define `` in one file is invisible
+# in the next -- and a flat multi-file project that relies on exactly that
+# (e.g. one `values.v` of opcode macros, used by every other file) then fails
+# with "unknown macro".  `read_systemverilog` (single call) and Yosys's own
+# `read_verilog` (one global preprocessor) both already share macros across
+# the files, so this only brings slang in line with them.
+yosys read_slang --single-unit {{ include_dirs_str }} {{ files | join(' ') }}
+
+# RV-Bench local addition (not upstream): mark that the read step
+# succeeded, so run_tool() can tell a failed read from a failed
+# `-abc9` synth step and only retry the latter with `-noabc9`.
+set _rvbench_fh [open "build/rvbench_read_ok" w]
+close $_rvbench_fh
+
+# Síntese para ECP5
+yosys synth_ecp5 -json {{ output_json }} -top {{ top_module }} {{ synth_ecp5_flags }}

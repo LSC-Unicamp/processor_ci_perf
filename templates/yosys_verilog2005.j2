@@ -1,0 +1,21 @@
+# RV-Bench local addition (not upstream): fourth fallback flow, for cores that
+# are written in plain Verilog-2005 but use a SystemVerilog keyword as an
+# identifier.  `input int,` / `input int;` is legal Verilog-2005 (there `int`
+# is just a net name), but both SystemVerilog frontends reject it: Surelog and
+# Slang both stop at "no viable alternative at input 'input int,'", and
+# Yosys's own `read_verilog -sv` (templates/yosys_verilog.j2) rejects it too
+# because `-sv` makes `int` a keyword.
+#
+# Reading without `-sv` puts Yosys in Verilog-2005 mode, where `int` is an
+# ordinary identifier again.  Only reached after all three SystemVerilog
+# frontends have failed, so every core that already synthesises is untouched.
+yosys read_verilog {{ include_dirs_str }} {{ files | join(' ') }}
+
+# RV-Bench local addition (not upstream): mark that the read step
+# succeeded, so run_tool() can tell a failed read from a failed
+# `-abc9` synth step and only retry the latter with `-noabc9`.
+set _rvbench_fh [open "build/rvbench_read_ok" w]
+close $_rvbench_fh
+
+# Síntese para ECP5
+yosys synth_ecp5 -json {{ output_json }} -top {{ top_module }} {{ synth_ecp5_flags }}

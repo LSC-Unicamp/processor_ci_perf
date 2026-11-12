@@ -112,6 +112,14 @@ class ImplementationFlow(ABC):
         self.top_module: str = top_module
         self.env: Environment = env
         self.include_dirs: List[str] = include_dirs
+        # RV-Bench local patch (not upstream): `run_fpga_flow` can turn the
+        # bitstream step off for a metrics-only run. The `metrics` variant
+        # builds the core's own top, which has no board pin constraints, so
+        # write_bitstream's DRC (NSTD-1/UCIO-1) fails for wide cores. The
+        # metrics are already in the utilisation/timing reports, so the
+        # bitstream is dead weight for that variant. Defaults to True so
+        # existing callers keep the hardware behaviour.
+        self.bitstream: bool = True
 
     @abstractmethod
     def generate_project(self) -> None:

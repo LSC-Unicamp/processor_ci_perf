@@ -83,6 +83,17 @@ def main() -> None:
         '-R', '--report-path', default='reports', help='Path to save reports'
     )
     parser.add_argument(
+        '--no-bitstream',
+        action='store_true',
+        help=(
+            'Skip the bitstream step. RV-Bench local patch: the metrics '
+            'variant builds the core\'s own top, which has no board pin '
+            'constraints, so write_bitstream would fail DRC (NSTD-1/UCIO-1) '
+            'for wide cores. Utilisation and timing reports are still '
+            'written.'
+        ),
+    )
+    parser.add_argument(
         '-P',
         '--processor-ci-path',
         default=PROCESSOR_CI_PATH,
@@ -212,6 +223,7 @@ def main() -> None:
             report_path=args.report_path,
             include_dirs=include_dirs,
             synlig_args=args.synlig_args.split(),
+            bitstream=not args.no_bitstream,
         )
     else:
         run_asic_flow(

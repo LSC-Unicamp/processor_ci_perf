@@ -12,5 +12,28 @@ yosys read_systemverilog {{ include_dirs_str }} {{ synth_synlig_args }} -defer {
 # Linkar todos os módulos
 yosys read_systemverilog -link
 
+# RV-Bench local patch (not upstream): Surelog's read_systemverilog only emits
+# modules it elects as top level. A parameterized module that is also
+# instantiated by a sibling (e.g. picorv32, instantiated by
+# picorv32_axi/picorv32_wb) therefore comes out only as
+# `$paramod$...\<name>`, and `synth_ecp5 -top <name>` then fails with
+# "Module `<name>' not found!". Yosys's own Verilog frontend emits every
+# module, so if the requested top is missing after the Surelog read, re-read
+# the same files with it. This runs only on the failure path, so cores that
+# already synthesise through Surelog are unchanged. (`hierarchy -top` raises a
+# recoverable TCL error, unlike the Surelog parse/elaborate failures that
+# abort the process -- those are retried in YosysFlow.run_tool instead, see
+# templates/yosys_verilog.j2.)
+if {[catch {yosys "hierarchy -top {{ top_module }}"} rvbench_msg]} {
+    yosys "design -reset"
+    yosys "read_verilog -sv {{ include_dirs_str }} {{ files | join(' ') }}"
+}
+
+# RV-Bench local addition (not upstream): mark that the read step
+# succeeded, so run_tool() can tell a failed read from a failed
+# `-abc9` synth step and only retry the latter with `-noabc9`.
+set _rvbench_fh [open "build/rvbench_read_ok" w]
+close $_rvbench_fh
+
 # Síntese para ECP5
-yosys synth_ecp5 -json {{ output_json }} -top {{ top_module }} -abc9
+yosys synth_ecp5 -json {{ output_json }} -top {{ top_module }} {{ synth_ecp5_flags }}
