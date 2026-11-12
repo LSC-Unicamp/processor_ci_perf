@@ -138,6 +138,21 @@ YOSYS_BOARDS = {
         'option': '--45k',
         'package': 'CABGA381',
         'speed': '6',
+        # RV-Bench local addition (not upstream): the resource budget of the
+        # ECP5 45K, keyed by the resource name `synth_ecp5` reports in its
+        # "Number of cells" block. nextpnr's own report carries the same
+        # "available" numbers, but a design that does not fit (or misses
+        # timing) leaves no nextpnr report, so the metrics report needs its
+        # own budget to express the utilisation as a percentage.
+        'resources': {
+            'TRELLIS_COMB': 43848,
+            'TRELLIS_FF': 43848,
+            'DP16KD': 108,
+            'TRELLIS_IO': 245,
+            'MULT18X18D': 72,
+            'ALU54B': 36,
+            'TRELLIS_RAMW': 5481,
+        },
     }
 }
 

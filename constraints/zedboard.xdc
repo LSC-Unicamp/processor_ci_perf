@@ -80,6 +80,11 @@
 # Clock Source - Bank 13
 # ---------------------------------------------------------------------------- 
 set_property PACKAGE_PIN Y9 [get_ports {clk}];  # "GCLK"
+# RV-Bench local patch (not upstream): the stock Avnet XDC has no timing
+# constraint on the clock, so `report_timing_summary` emits no Clock Summary
+# and the flow records no fmax for this board. 50 MHz, matching this board's
+# `CLOCK_FREQ`.
+create_clock -name sys_clk_pin -period 20.00 [get_ports {clk}]
 
 # ----------------------------------------------------------------------------
 # JA Pmod - Bank 13 
@@ -116,7 +121,11 @@ set_property PACKAGE_PIN Y4  [get_ports {miso}];  # "JC2_P"
 set_property PACKAGE_PIN T6  [get_ports {sck}];  # "JC3_N"
 set_property PACKAGE_PIN R6  [get_ports {cs}];  # "JC3_P"
 set_property PACKAGE_PIN U4  [get_ports {soft_reset}];  # "JC4_N"
-#set_property PACKAGE_PIN T4  [get_ports {JC4_P}];  # "JC4_P"
+# RV-Bench local patch (not upstream): fpga_top exposes `intr` on the same
+# JC Pmod; without a PACKAGE_PIN Vivado rejects the bitstream with
+# [DRC NSTD-1]/[DRC UCIO-1] ("Problem ports: intr"). JC4_P is the last free
+# pin on that header.
+set_property PACKAGE_PIN T4  [get_ports {intr}];  # "JC4_P"
 
 # ----------------------------------------------------------------------------
 # JD Pmod - Bank 13

@@ -1,0 +1,27 @@
+# RV-Bench local addition (not upstream): fallback flow for cores the
+# Surelog/synlig SystemVerilog frontend cannot handle at all.
+#
+# templates/yosys.j2 reads the sources with `read_systemverilog`, which gives
+# the best SystemVerilog coverage but whose failures (Surelog parse errors,
+# elaboration errors, UHDM-importer errors) call exit()/abort() rather than
+# raising a recoverable TCL error -- so they cannot be caught inside the TCL
+# script. YosysFlow.run_tool therefore runs yosys.j2 first and, if that
+# process dies, retries with this file, which reads everything through Yosys's
+# own Verilog/SystemVerilog frontend. That frontend is more permissive on
+# legacy Verilog and on constructs Surelog's parser or importer reject
+# (implicit declarations under `default_nettype none`, local declarations in
+# unnamed blocks, some system-function uses), and several corpus cores that
+# Surelog refuses to parse go straight through `read_verilog -sv`.
+#
+# Only reached on the failure path, so cores that already synthesise through
+# Surelog are untouched.
+yosys read_verilog -sv {{ include_dirs_str }} {{ files | join(' ') }}
+
+# RV-Bench local addition (not upstream): mark that the read step
+# succeeded, so run_tool() can tell a failed read from a failed
+# `-abc9` synth step and only retry the latter with `-noabc9`.
+set _rvbench_fh [open "build/rvbench_read_ok" w]
+close $_rvbench_fh
+
+# Síntese para ECP5
+yosys synth_ecp5 -json {{ output_json }} -top {{ top_module }} {{ synth_ecp5_flags }}

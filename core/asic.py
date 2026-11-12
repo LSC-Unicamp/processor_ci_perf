@@ -65,6 +65,7 @@ class OpenRoadFlow(ImplementationFlow):
                 'additional_lib_files', []
             ),
             'include_dirs': self.include_dirs,
+            'synth_slang_args': ' '.join(getattr(self, 'slang_args', [])),
         }
 
         write_template_to_file(self.env, 'openroad.j2', context, 'openroad.mk')
@@ -83,6 +84,23 @@ class OpenRoadFlow(ImplementationFlow):
 
         openroad_makefile_path = os.path.join(openroad_path, 'flow/Makefile')
 
+        # RV-Bench local addition (not upstream): the OpenROAD binaries shipped
+        # in the OpenROAD-flow-scripts build image carry a RUNPATH pointing at
+        # /opt/or-tools/lib, which is not writable on this host.  The
+        # libraries are extracted next to the binary instead; point
+        # LD_LIBRARY_PATH at them so both `openroad` and `sta` load.
+        extra_libs = os.environ.get('ORFS_LIBRARY_PATH', '')
+        if extra_libs:
+            os.environ['LD_LIBRARY_PATH'] = (
+                extra_libs + ':'
+                + os.environ.get('LD_LIBRARY_PATH', '')
+            ).strip(':')
+        # The Tcl runtime shipped in the OpenROAD build image is not in the
+        # host's default Tcl search path; point TCL_LIBRARY at its init.tcl.
+        tcl_library = os.environ.get('ORFS_TCL_LIBRARY', '')
+        if tcl_library:
+            os.environ['TCL_LIBRARY'] = tcl_library
+
         run_cmd(
             [
                 'make',
@@ -97,7 +115,7 @@ class OpenRoadFlow(ImplementationFlow):
         )
 
     def clean(self) -> None:
-        run_cmd(['rm', '-rf', 'build', 'reports', '*.jou', '*.log', '*.bit'])
+        run_cmd(['rm', '-rf', 'build', 'reports', '*.jou', '*.log', '*.bit'], check=False)
 
 
     def report(self, report_path: str = 'reports') -> None:

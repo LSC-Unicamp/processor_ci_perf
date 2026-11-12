@@ -60,6 +60,17 @@ def main() -> None:
     parser.add_argument('--top-params', nargs='+', default=[],
                         help='Top-module overrides as NAME=VALUE tokens')
     parser.add_argument(
+        '--no-bitstream',
+        action='store_true',
+        help=(
+            'Skip the bitstream step. RV-Bench local patch: the metrics '
+            'variant builds the core\'s own top, which has no board pin '
+            'constraints, so write_bitstream would fail DRC (NSTD-1/UCIO-1) '
+            'for wide cores. Utilisation and timing reports are still '
+            'written.'
+        ),
+    )
+    parser.add_argument(
         '-p',
         '--constraint',
         default='default',
@@ -117,6 +128,30 @@ def main() -> None:
         nargs='+',
         default=[],
         help='List of directories to include in the flow',
+    )
+    parser.add_argument(
+        '--slang-args',
+        type=str,
+        default='',
+        help=(
+            'Extra flags passed to the ASIC flow\'s SLANG frontend '
+            '(ORFS SYNTH_SLANG_ARGS), as one space-separated string, e.g. '
+            '"--ignore-initial --ignore-timing". A single string, not '
+            'nargs="+", because the values themselves start with "--" and '
+            'argparse would otherwise try to parse them as new options.'
+        ),
+    )
+    parser.add_argument(
+        '--synlig-args',
+        type=str,
+        default='',
+        help=(
+            'Extra flags passed to the FPGA (Yosys) flow\'s synlig/Surelog '
+            'frontend (read_systemverilog), as one space-separated string, '
+            'e.g. "-noassert". Same shape as --slang-args, for the same '
+            'reason -- a different tool with a different flag surface, so a '
+            'separate flag rather than reusing --slang-args.'
+        ),
     )
 
     args = parser.parse_args()
@@ -210,6 +245,7 @@ def main() -> None:
             nextpnr_args=shlex.split(args.nextpnr_args),
             frontend=args.fpga_frontend,
             top_params=args.top_params,
+            bitstream=not args.no_bitstream,
         )
     else:
         run_asic_flow(
