@@ -52,8 +52,6 @@ def main() -> None:
         '-f', '--files', nargs='+', default=[], help='List of project files'
     )
     parser.add_argument('--filelist', help='ASIC SLANG file list, one source per line')
-    parser.add_argument('--slang-args', default='', help='ASIC SLANG frontend arguments')
-    parser.add_argument('--synlig-args', default='', help='FPGA Synlig frontend arguments')
     parser.add_argument('--nextpnr-args', default='', help='FPGA nextpnr arguments')
     parser.add_argument('--fpga-frontend', choices=['synlig', 'yosys'],
                         default='synlig', help='FPGA RTL frontend')
