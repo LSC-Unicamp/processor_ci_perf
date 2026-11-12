@@ -66,6 +66,15 @@ class OpenRoadFlow(ImplementationFlow):
             ),
             'include_dirs': self.include_dirs,
             'synth_slang_args': ' '.join(getattr(self, 'slang_args', [])),
+            # ORFS stops synthesis when an inferred read/write memory exceeds
+            # SYNTH_MEMORY_MAX_BITS (default 4096) and no PDK macro covers it.
+            # The wrapper sets both from the core config (see
+            # synth_asic.py's `_environment`); an empty value leaves ORFS's
+            # own default in place.
+            'synth_memory_max_bits': os.environ.get('SYNTH_MEMORY_MAX_BITS', ''),
+            'synth_mock_large_memories': os.environ.get(
+                'SYNTH_MOCK_LARGE_MEMORIES', ''
+            ),
         }
 
         write_template_to_file(self.env, 'openroad.j2', context, 'openroad.mk')

@@ -40,4 +40,14 @@ export VERILOG_TOP_PARAMS = {% for name, value in verilog_top_params %}{{ name }
 {% endif %}
 
 export SYNTH_HDL_FRONTEND = {{ synth_hdl_frontend }}
+{% if synth_mock_large_memories %}
+# ORFS rejects an inferred read/write memory over SYNTH_MEMORY_MAX_BITS
+# (default 4096) with no PDK macro; mock it so the flow still yields
+# area/timing. A core that wants the real (flip-flop) memory sets
+# `synth_memory_max_bits` instead.
+export SYNTH_MOCK_LARGE_MEMORIES ?= {{ synth_mock_large_memories }}
+{% endif %}
+{% if synth_memory_max_bits %}
+export SYNTH_MEMORY_MAX_BITS ?= {{ synth_memory_max_bits }}
+{% endif %}
 export TNS_END_PERCENT    = 100
