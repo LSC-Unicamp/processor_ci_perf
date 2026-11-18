@@ -1,5 +1,6 @@
+{% include 'yosys_file_args.j2' %}
 {% if frontend == 'yosys' %}
-yosys read_verilog -sv {{ include_dirs_str }} {{ files | join(' ') }}
+yosys read_verilog -sv {*}$rvbench_includes {*}$rvbench_defines {*}$rvbench_files
 {% else %}
 # === Ler arquivos SystemVerilog com defer ===
 # One call for every file, not one call per file: each separate
@@ -10,7 +11,7 @@ yosys read_verilog -sv {{ include_dirs_str }} {{ files | join(' ') }}
 # invisible across files -- confirmed against RV-Bench's corpus: reading all
 # files together resolves it, the same effect --single-unit has in tools that
 # offer that flag natively (this Surelog-based frontend does not).
-yosys read_systemverilog {{ include_dirs_str }} {{ synth_synlig_args }} -defer {{ files | join(' ') }}
+yosys read_systemverilog {*}$rvbench_includes {*}$rvbench_defines {*}$rvbench_synlig_args -defer {*}$rvbench_files
 
 # Linkar todos os módulos
 yosys read_systemverilog -link
@@ -35,7 +36,7 @@ yosys chparam {% for name, value in top_params %}-set {{ name }} {{ value }} {% 
 # templates/yosys_verilog.j2.)
 if {[catch {yosys "hierarchy -top {{ top_module }}"} rvbench_msg]} {
     yosys "design -reset"
-    yosys "read_verilog -sv {{ include_dirs_str }} {{ files | join(' ') }}"
+    yosys read_verilog -sv {*}$rvbench_includes {*}$rvbench_defines {*}$rvbench_files
 }
 
 # RV-Bench local addition (not upstream): mark that the read step

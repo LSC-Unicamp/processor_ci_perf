@@ -19,7 +19,8 @@
 # with "unknown macro".  `read_systemverilog` (single call) and Yosys's own
 # `read_verilog` (one global preprocessor) both already share macros across
 # the files, so this only brings slang in line with them.
-yosys read_slang --single-unit {{ include_dirs_str }} {{ files | join(' ') }}
+{% include 'yosys_file_args.j2' %}
+yosys read_slang --single-unit {*}$rvbench_includes {*}$rvbench_defines {*}$rvbench_files
 
 # RV-Bench local addition (not upstream): mark that the read step
 # succeeded, so run_tool() can tell a failed read from a failed

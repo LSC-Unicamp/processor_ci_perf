@@ -76,7 +76,8 @@ def write_template_to_file(
     return filename
 
 
-def run_cmd(command: List[str], cwd: Optional[str] = None, check: bool = True) -> None:
+def run_cmd(command: List[str], cwd: Optional[str] = None, check: bool = True,
+            timeout_seconds: int | None = None) -> None:
     # RV-Bench local patch (not upstream): this used to be `check=False`
     # unconditionally, which discarded every subprocess's exit code --
     # `make` genuinely stops at the first failed flow stage (confirmed: a
@@ -90,7 +91,7 @@ def run_cmd(command: List[str], cwd: Optional[str] = None, check: bool = True) -
     # failure is genuinely not fatal -- `.clean()`'s `rm -rf` of files that
     # may not exist -- which pass it explicitly.
     print_yellow(f"Running command: {' '.join(command)}")
-    subprocess.run(command, cwd=cwd, check=check)
+    subprocess.run(command, cwd=cwd, check=check, timeout=timeout_seconds)
 
 
 # -------------------------
@@ -112,6 +113,7 @@ class ImplementationFlow(ABC):
         self.top_module: str = top_module
         self.env: Environment = env
         self.include_dirs: List[str] = include_dirs
+        self.vivado_systemverilog: bool = False
         # RV-Bench local patch (not upstream): `run_fpga_flow` can turn the
         # bitstream step off for a metrics-only run. The `metrics` variant
         # builds the core's own top, which has no board pin constraints, so

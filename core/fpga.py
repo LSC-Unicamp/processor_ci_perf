@@ -3,6 +3,7 @@ import csv
 import json
 import os
 import re
+import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, List
@@ -32,6 +33,14 @@ TOOLCHAINS_INSTALL_PATH = {
     'yosys': os.getenv('YOSYS_INSTALL_PATH', ''),
     'gowin': os.getenv('GOWIN_INSTALL_PATH', ''),
 }
+
+
+def _tcl_word(value: str) -> str:
+    """Quote one argument for a Tcl list without expanding path contents."""
+    escaped = (str(value).replace('\\', '\\\\').replace('"', '\\"')
+               .replace('$', '\\$').replace('[', '\\[')
+               .replace('\n', '\\n').replace('\r', '\\r'))
+    return f'"{escaped}"'
 
 
 def _slang_yosys_bin() -> str | None:
@@ -90,7 +99,7 @@ _SYNTH_ECP5_CELL_MAP = {
 def _parse_synth_ecp5_utilization(
     log_path: str, technology: str
 ) -> Dict[str, Dict[str, int]]:
-    """Read the utilisation from a `synth_ecp5` "Number of cells" block.
+    """Read final ECP5 cell counts from older and newer Yosys stat formats.
 
     Used when the nextpnr place-and-route report is missing: a design that
     does not fit or misses timing still leaves a complete synthesis
@@ -101,22 +110,31 @@ def _parse_synth_ecp5_utilization(
         'resources', {}
     )
     utilization: Dict[str, Dict[str, int]] = {}
-    in_stats = False
+    stat_format: str | None = None
     try:
         with open(log_path, 'r', errors='replace') as log:
             for line in log:
                 if 'Number of cells:' in line:
-                    in_stats = True
+                    stat_format = 'cell-first'
+                    utilization = {}
                     continue
-                if not in_stats:
+                if line.startswith('=== ') and line.rstrip().endswith(' ==='):
+                    stat_format = 'count-first'
+                    utilization = {}
                     continue
-                match = re.match(r'^\s+([A-Za-z0-9_]+)\s+(\d+)\s*$', line)
+                if stat_format is None:
+                    continue
+                if stat_format == 'cell-first':
+                    match = re.match(r'^\s+([A-Za-z0-9_]+)\s+(\d+)\s*$', line)
+                    cell, count = (match.group(1), int(match.group(2))) if match else ('', 0)
+                else:
+                    match = re.match(r'^\s+(\d+)\s+([A-Za-z0-9_]+)\s*$', line)
+                    cell, count = (match.group(2), int(match.group(1))) if match else ('', 0)
                 if match is None:
                     # A blank line or a non-cell line ends the block.
                     if line.strip() and not line.startswith(' '):
-                        in_stats = False
+                        stat_format = None
                     continue
-                cell, count = match.group(1), int(match.group(2))
                 resource = _SYNTH_ECP5_CELL_MAP.get(cell)
                 if resource is not None:
                     utilization[resource] = {
@@ -154,12 +172,18 @@ class VivadoFlow(ImplementationFlow):
         )
 
         context: Dict[str, Any] = {
-            'files': self.project_files,
-            'constraints': constraints,
-            'top_module': self.top_module,
-            'fpga_part': VIVADO_BOARDS[self.technology]['part'],
+            'sources': [
+                {'path': _tcl_word(path), 'extension': os.path.splitext(path)[1].lower()}
+                for path in self.project_files
+            ],
+            'constraints': _tcl_word(constraints),
+            'top_module': _tcl_word(self.top_module),
+            'fpga_part': _tcl_word(VIVADO_BOARDS[self.technology]['part']),
             'prefix': VIVADO_BOARDS[self.technology]['prefix'],
-            'include_dirs': self.include_dirs,
+            'include_dirs': [_tcl_word(path) for path in self.include_dirs],
+            'systemverilog': self.vivado_systemverilog,
+            'defines': [_tcl_word(item) for item in getattr(self, 'defines', [])],
+            'top_params': [_tcl_word(item) for item in getattr(self, 'top_params', [])],
             # RV-Bench local patch: metrics-only runs skip the bitstream step.
             'bitstream': self.bitstream,
         }
@@ -207,9 +231,11 @@ class VivadoFlow(ImplementationFlow):
         power_file = os.path.join(
             "reports", f'{self.technology}_power.rpt'
         )
-        util_file_xml = os.path.join(
-            "reports", f'{self.technology}_utilization.xml'
-        )
+        util_file_xml = os.path.join("reports", f'{self.technology}_utilization.xml')
+        if not os.path.exists(util_file_xml):
+            util_file_xml = os.path.join(
+                "reports", f'{self.technology}_synthesis_utilization.xml'
+            )
         csv_file = os.path.join(report_path, f'{self.technology}_report.csv')
 
         # RV-Bench local patch (not upstream): YosysFlow.report() already
@@ -219,6 +245,15 @@ class VivadoFlow(ImplementationFlow):
         # nothing had created. The Tcl's own reports/ lives in the cwd, but
         # --report-path is a separate, caller-supplied directory.
         os.makedirs(report_path, exist_ok=True)
+        stage_file = os.path.join("reports", f"{self.technology}_metrics_stage.txt")
+        if os.path.isfile(stage_file):
+            destination = os.path.join(report_path, os.path.basename(stage_file))
+            if os.path.realpath(stage_file) != os.path.realpath(destination):
+                shutil.copy2(stage_file, destination)
+        if os.path.isfile(util_file_xml):
+            destination = os.path.join(report_path, os.path.basename(util_file_xml))
+            if os.path.realpath(util_file_xml) != os.path.realpath(destination):
+                shutil.copy2(util_file_xml, destination)
 
         # --- PARSE DESIGN TIMING SUMMARY for WNS ---
         wns_ns = 0.0
@@ -283,8 +318,10 @@ class VivadoFlow(ImplementationFlow):
                         if not cells:
                             continue
                         instance_name = cells[0].attrib.get('contents', '')
-                        if instance_name != 'top':
-                            continue  # pegar apenas o total do design
+                        if instance_name != root.attrib.get('designname', ''):
+                            continue  # use the actual design top, not a literal "top"
+                        if len(cells) < 10:
+                            continue
                         # mapeia colunas para recursos
                         res_map = {
                             'Total LUTs': int(
@@ -377,26 +414,30 @@ class YosysFlow(ImplementationFlow):
         # path (CURRENT_DIR + '/' + an absolute path) for every caller that
         # passes absolute include dirs, silently breaking --include-dirs
         # whenever a core's top-level file `include`s a sibling header.
-        include_dirs_str = ' '.join(
+        include_args = [
             f'-I{d}' if os.path.isabs(d) else f'-I{CURRENT_DIR}/{d}'
             for d in self.include_dirs
-        )
+        ]
 
         context: Dict[str, Any] = {
             'files': self.project_files,
             'top_module': self.top_module,
             'output_json': output_json,
-            # Was 'include_dirs' -- templates/yosys.j2 reads
-            # {{ include_dirs_str }}, so the mismatched key rendered as
-            # empty for every job regardless of what --include-dirs passed.
-            # Patched locally, not upstream, per RV-Bench's convention for
-            # this submodule (see run_cmd() in core/__init__.py).
-            'include_dirs_str': include_dirs_str,
+            # Tcl lists preserve each path as one argument, including names
+            # with spaces. The previous string joins split such paths before
+            # Yosys or Surelog could open them.
+            'tcl_files': [_tcl_word(path) for path in self.project_files],
+            'tcl_include_args': [_tcl_word(arg) for arg in include_args],
             # Same shape as OpenRoadFlow's synth_slang_args (core/asic.py) --
             # extra flags for this flow's own SystemVerilog frontend
             # (synlig/Surelog's read_systemverilog, not SLANG -- different
             # tool, different flag surface, hence the separate name).
-            'synth_synlig_args': ' '.join(getattr(self, 'synlig_args', [])),
+            'tcl_synlig_args': [
+                _tcl_word(arg) for arg in getattr(self, 'synlig_args', [])
+            ],
+            'tcl_define_args': [
+                _tcl_word(f'-D{item}') for item in getattr(self, 'defines', [])
+            ],
             # Named core presets: NAME=VALUE tokens applied with `chparam`
             # after the read step (see templates/yosys.j2).
             'frontend': getattr(self, 'frontend', 'synlig'),
@@ -504,16 +545,17 @@ class YosysFlow(ImplementationFlow):
         # frontend that fails while parsing is not re-run.  See
         # `synth_ecp5_flags` in generate_project.
         slang_yosys = _slang_yosys_bin()
+        synth_log = f'reports/{prefix}_synthesis.log'
         frontends: list[tuple[str, list[str]]] = [
-            ('SystemVerilog', [yosys_bin, '-c', 'yosys_project.tcl']),
-            ('Yosys read_verilog', [yosys_bin, '-c', 'yosys_verilog.tcl']),
+            ('SystemVerilog', [yosys_bin, '-l', synth_log, '-c', 'yosys_project.tcl']),
+            ('Yosys read_verilog', [yosys_bin, '-l', synth_log, '-c', 'yosys_verilog.tcl']),
         ]
         if slang_yosys:
             frontends.append(
-                ('Slang', [slang_yosys, '-m', 'slang', '-c', 'yosys_slang.tcl'])
+                ('Slang', [slang_yosys, '-m', 'slang', '-l', synth_log, '-c', 'yosys_slang.tcl'])
             )
         frontends.append(
-            ('Verilog-2005', [yosys_bin, '-c', 'yosys_verilog2005.tcl'])
+            ('Verilog-2005', [yosys_bin, '-l', synth_log, '-c', 'yosys_verilog2005.tcl'])
         )
 
         read_ok_marker = 'build/rvbench_read_ok'
@@ -595,11 +637,15 @@ class YosysFlow(ImplementationFlow):
         # continue and fall back to the synthesis utilisation in report().
         if not self.bitstream:
             try:
-                run_cmd(nextpnr_args)
-            except subprocess.CalledProcessError:
+                placement_limit = getattr(self, 'nextpnr_timeout', None)
+                if placement_limit is None:
+                    run_cmd(nextpnr_args)
+                else:
+                    run_cmd(nextpnr_args, timeout_seconds=placement_limit)
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
                 print_yellow(
-                    'nextpnr did not complete (design does not fit or '
-                    'misses timing); reporting synthesis utilisation only'
+                    'nextpnr did not complete (placement failure or time limit); '
+                    'reporting synthesis utilisation without timing'
                 )
         else:
             run_cmd(nextpnr_args)
@@ -622,25 +668,12 @@ class YosysFlow(ImplementationFlow):
     def clean(self) -> None:
         run_cmd(['rm', '-rf', 'build', '*.bit', '*.json', '*.rpt', 'slpp_all'], check=False)
 
-    def _find_synth_log(self, report_path: str) -> str | None:
-        """Locate the log that holds `synth_ecp5`'s "Number of cells" block.
-
-        RV-Bench local addition (not upstream): `synth_ecp5` prints its
-        utilisation to stdout and the flow captures no copy of its own, so
-        the caller's redirection is the only one there is.  Two are checked,
-        in this order:
-
-        - `subprocess.stdout.log` in the cwd.  RV-Bench's runner streams the
-          flow's stdout straight to that file (see `ToolContext.run_subprocess`)
-          and runs the flow from its scratch directory, so it is present --
-          and, by the time `report()` runs, complete for the synthesis step,
-          which finished before this Python process reached `report()`.
-        - `stdout.log` in the cwd, for a standalone run redirected to a file.
-
-        The wrapper's copy wins because it is the one the run record itself
-        is built from.
-        """
-        for candidate in ('subprocess.stdout.log', 'stdout.log'):
+    def _find_synth_log(self) -> str | None:
+        """Use this flow's Yosys log, with older standalone paths as fallback."""
+        for candidate in (
+            f'reports/{YOSYS_BOARDS[self.technology]["prefix"]}_synthesis.log',
+            'subprocess.stdout.log', 'stdout.log',
+        ):
             if os.path.isfile(candidate):
                 return candidate
         return None
@@ -670,12 +703,17 @@ class YosysFlow(ImplementationFlow):
                 'utilisation (timing unavailable)'
             )
             fmax_info = {}
-            log_path = self._find_synth_log(report_path)
+            log_path = self._find_synth_log()
             util_info = (
                 _parse_synth_ecp5_utilization(log_path, self.technology)
                 if log_path
                 else {}
             )
+            if log_path:
+                os.makedirs(report_path, exist_ok=True)
+                destination = os.path.join(report_path, f'{prefix}_synthesis.log')
+                if os.path.realpath(log_path) != os.path.realpath(destination):
+                    shutil.copy2(log_path, destination)
 
         os.makedirs(report_path, exist_ok=True)
 
@@ -832,7 +870,10 @@ def run_fpga_flow(
     nextpnr_args: list[str] | None = None,
     frontend: str = 'synlig',
     top_params: list[str] | None = None,
+    defines: list[str] | None = None,
     bitstream: bool = True,
+    vivado_systemverilog: bool = False,
+    nextpnr_timeout: int | None = None,
 ) -> None:
     board_name = board_name.lower()
 
@@ -857,10 +898,13 @@ def run_fpga_flow(
     )
     flow.synlig_args = synlig_args or []
     flow.nextpnr_args = nextpnr_args or []
+    flow.nextpnr_timeout = nextpnr_timeout
     flow.frontend = frontend
     flow.top_params = top_params or []
+    flow.defines = defines or []
     # RV-Bench local patch: metrics-only runs skip the bitstream step.
     flow.bitstream = bitstream
+    flow.vivado_systemverilog = vivado_systemverilog
     flow.run()
 
     if get_reports:

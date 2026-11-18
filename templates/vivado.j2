@@ -1,90 +1,84 @@
-# === Arquivos ===
-{% for f in files %}
-{% set ext = f.split('.')[-1].lower() %}
-{% if ext == "sv" -%}
-read_verilog -sv {{ f }}
-{% elif ext == "v" -%}
-read_verilog {{ f }}
-{% elif ext in ["vhdl", "vhd"] -%}
-read_vhdl -vhdl2008 {{ f }}
+# Keep Tcl arguments as separate words. Paths may contain spaces or Tcl
+# metacharacters; the caller has encoded each value with _tcl_word().
+set rvbench_include_dirs [list {{ include_dirs | join(' ') }}]
+
+# Declared headers precede RTL, preserving the configured source order.
+{% for source in sources %}
+{% if source.extension in [".sv", ".vh", ".h"] -%}
+read_verilog -sv {{ source.path }}
+{% elif source.extension == ".v" -%}
+read_verilog {% if systemverilog %}-sv {% endif %}{{ source.path }}
+{% elif source.extension in [".vhdl", ".vhd"] -%}
+read_vhdl -vhdl2008 {{ source.path }}
 {% else -%}
-# Arquivo não reconhecido: {{ f }}
+# Unrecognized source extension: {{ source.path }}
 {% endif %}
 {% endfor %}
 
-# include dirs
-
 {% if include_dirs %}
-set_property include_dirs [list {{ include_dirs | join(' ') }} ] [get_filesets sources_1]
+set_property include_dirs $rvbench_include_dirs [get_filesets sources_1]
 {% endif %}
 
-# Constraints
-# RV-Bench local patch: the metrics variant builds the core's own top; the
-# board's pin constraints target fpga_top's ports and a board clock port, none
-# of which exist in a bare core, so reading them there is noise (and, with no
-# clock on the core's own clock pin, place_design then fails with
-# [Place 30-188] "UnBuffered IOs"). Only the hardware variant, whose top is
-# fpga_top, reads them.
+# Hardware uses the board pin constraints. Metrics synthesize the bare core
+# out of context, so its unconstrained ports must not trigger bitstream DRC.
 {% if bitstream %}
-read_xdc "{{ constraints }}"
+read_xdc {{ constraints }}
 set_property PROCESSING_ORDER EARLY [get_files {{ constraints }}]
-{% else %}
-# (metrics: no board XDC -- see below)
 {% endif %}
 
-# Synthesis
-# RV-Bench local patch: the metrics variant's core top has no board pin
-# constraints and, for a wide interface, more ports than the device has pins
-# -- in-context opt_design/place_design then fail with [Place 30-415] /
-# [Place 30-58] "IO Placement failed due to overutilization", even though the
-# metric it exists to collect is logic utilisation and timing. Build it
-# out-of-context there: that skips IO buffer insertion and IO placement
-# outright, so P&R only has to place the core's own logic. The hardware
-# variant keeps the normal in-context flow (fpga_top is pin-constrained, and
-# there the bitstream really is the point).
-{% if bitstream %}synth_design -top "{{ top_module }}" -part "{{ fpga_part }}"
-{% else %}synth_design -top "{{ top_module }}" -part "{{ fpga_part }}" -mode out_of_context
-# Out-of-context synthesis inserts no clock buffer, so constrain whatever
-# clock-looking input port(s) the core exposes itself, purely so the placer
-# has a clock to time against; cores with no such port still report
-# utilisation.
+# Vivado's -generic overrides a top-level Verilog parameter. The adapter
+# rejects named parameter presets for the fixed hardware wrapper, so these
+# options apply only when the chosen core is itself the synthesis top.
+synth_design -top {{ top_module }} -part {{ fpga_part }}{% if not bitstream %} -mode out_of_context{% endif %}{% if include_dirs %} -include_dirs $rvbench_include_dirs{% endif %}{% for define in defines %} -verilog_define {{ define }}{% endfor %}{% for parameter in top_params %} -generic {{ parameter }}{% endfor %}
+
+{% if not bitstream %}
+# Save synthesis utilization before implementation. A core may elaborate and
+# map correctly but exceed placement resources; that remains a useful
+# utilization-only metrics result, without a timing claim.
+report_utilization -hierarchical -file reports/{{ prefix }}_synthesis_utilization.xml -format xml
+report_utilization -file reports/{{ prefix }}_synthesis_utilization.rpt
 foreach clk [get_ports -quiet -filter {DIRECTION == IN && (name =~ "*clk*" || name =~ "*clock*" || name =~ "*CLK*" || name =~ "*CLOCK*")}] {
     create_clock -name $clk -period 10.0 $clk
 }
-{% endif %}
-
-# Place and Route
+set rvbench_implementation_complete 1
+if {[catch {opt_design; place_design; route_design} rvbench_implementation_error]} {
+    set rvbench_implementation_complete 0
+    puts stderr "RV-Bench metrics: placement or routing failed; reporting synthesis utilization only: $rvbench_implementation_error"
+}
+if {$rvbench_implementation_complete} {
+{% else %}
 opt_design
 place_design
-
-# Reports após placement
-report_utilization -hierarchical -file reports/{{ prefix }}_utilization.xml -format xml
-report_utilization -hierarchical -file reports/{{ prefix }}_utilization_hierarchical_place.rpt
-report_utilization               -file reports/{{ prefix }}_utilization_place.rpt
-report_io                        -file reports/{{ prefix }}_io.rpt
-report_control_sets -verbose     -file reports/{{ prefix }}_control_sets.rpt
-report_clock_utilization         -file reports/{{ prefix }}_clock_utilization.rpt
-
-# Routing
-route_design
-
-# Reports após routing
-report_timing_summary -no_header -no_detailed_paths
-report_route_status                 -file reports/{{ prefix }}_route_status.rpt
-report_drc                          -file reports/{{ prefix }}_drc.rpt
-report_timing_summary -max_paths 10 -file reports/{{ prefix }}_timing.rpt
-report_power                        -file reports/{{ prefix }}_power.rpt
-report_timing_summary    -no_header -file reports/{{ prefix }}_timing_resumed.rpt -no_detailed_paths
-
-
-# Bitstream
-{% if bitstream %}
-write_bitstream -force "{{ prefix }}.bit"
-{% else %}
-# RV-Bench local patch: metrics-only run, no bitstream. The core's own top
-# has no board pin constraints, so write_bitstream would fail DRC (NSTD-1 /
-# UCIO-1) for a wide interface; the utilisation and timing reports are
-# already written above.
 {% endif %}
 
+report_utilization -hierarchical -file reports/{{ prefix }}_utilization.xml -format xml
+report_utilization -hierarchical -file reports/{{ prefix }}_utilization_hierarchical_place.rpt
+report_utilization -file reports/{{ prefix }}_utilization_place.rpt
+report_io -file reports/{{ prefix }}_io.rpt
+report_control_sets -verbose -file reports/{{ prefix }}_control_sets.rpt
+report_clock_utilization -file reports/{{ prefix }}_clock_utilization.rpt
+
+{% if bitstream %}
+route_design
+{% endif %}
+report_timing_summary -no_header -no_detailed_paths
+report_route_status -file reports/{{ prefix }}_route_status.rpt
+report_drc -file reports/{{ prefix }}_drc.rpt
+report_timing_summary -max_paths 10 -file reports/{{ prefix }}_timing.rpt
+report_power -file reports/{{ prefix }}_power.rpt
+report_timing_summary -no_header -file reports/{{ prefix }}_timing_resumed.rpt -no_detailed_paths
+
+{% if not bitstream %}
+}
+set rvbench_stage_file [open reports/{{ prefix }}_metrics_stage.txt w]
+if {$rvbench_implementation_complete} {
+    puts $rvbench_stage_file "placed_routed"
+} else {
+    puts $rvbench_stage_file "synthesis_only"
+    puts $rvbench_stage_file $rvbench_implementation_error
+}
+close $rvbench_stage_file
+{% else %}
+write_bitstream -force {{ prefix }}.bit
+{% endif %}
 exit

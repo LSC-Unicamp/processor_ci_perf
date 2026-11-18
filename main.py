@@ -53,10 +53,16 @@ def main() -> None:
     )
     parser.add_argument('--filelist', help='ASIC SLANG file list, one source per line')
     parser.add_argument('--nextpnr-args', default='', help='FPGA nextpnr arguments')
+    parser.add_argument('--nextpnr-timeout', type=int, default=None,
+                        help='Bound nextpnr placement in seconds for metrics runs')
     parser.add_argument('--fpga-frontend', choices=['synlig', 'yosys'],
                         default='synlig', help='FPGA RTL frontend')
+    parser.add_argument('--vivado-systemverilog', action='store_true',
+                        help='Read .v sources as SystemVerilog in Vivado')
     parser.add_argument('--top-params', nargs='+', default=[],
                         help='Top-module overrides as NAME=VALUE tokens')
+    parser.add_argument('--defines', nargs='+', default=[],
+                        help='Verilog preprocessor macros as NAME or NAME=VALUE tokens')
     parser.add_argument(
         '--no-bitstream',
         action='store_true',
@@ -160,6 +166,12 @@ def main() -> None:
     if any(not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*=\S+', item)
            for item in args.top_params):
         parser.error('--top-params requires NAME=VALUE tokens')
+    if any(not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*(?:=[A-Za-z0-9_.+\-]+)?', item)
+           for item in args.defines):
+        parser.error('--defines requires NAME or NAME=VALUE tokens')
+    names = [item.partition('=')[0] for item in args.defines]
+    if len(names) != len(set(names)):
+        parser.error('--defines contains duplicate macro names')
     
     if not args.flow:
         print_red("Error: flow not provided (use -F or RVB_FLOW).")
@@ -231,6 +243,8 @@ def main() -> None:
     if args.flow == 'fpga':
         if args.filelist:
             parser.error('--filelist is only supported by the ASIC flow')
+        if args.nextpnr_timeout is not None and args.nextpnr_timeout <= 0:
+            parser.error('--nextpnr-timeout must be a positive number of seconds')
         run_fpga_flow(
             args.technology,
             files,
@@ -241,8 +255,11 @@ def main() -> None:
             include_dirs=include_dirs,
             synlig_args=shlex.split(args.synlig_args),
             nextpnr_args=shlex.split(args.nextpnr_args),
+            nextpnr_timeout=args.nextpnr_timeout,
             frontend=args.fpga_frontend,
+            vivado_systemverilog=args.vivado_systemverilog,
             top_params=args.top_params,
+            defines=args.defines,
             bitstream=not args.no_bitstream,
         )
     else:
@@ -254,7 +271,8 @@ def main() -> None:
             clean=args.clean,
             report_path=args.report_path,
             include_dirs=include_dirs,
-            slang_args=shlex.split(args.slang_args),
+            slang_args=[*shlex.split(args.slang_args),
+                        *(f'-D{item}' for item in args.defines)],
             filelist=args.filelist,
             top_params=args.top_params,
         )

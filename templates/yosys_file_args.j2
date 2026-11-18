@@ -1,0 +1,7 @@
+# Keep paths and frontend flags as distinct Tcl arguments. A source or include
+# directory may contain spaces; joining them into a command string loses that
+# boundary before the Yosys frontend receives the arguments.
+set rvbench_files [list {{ tcl_files | join(' ') }}]
+set rvbench_includes [list {{ tcl_include_args | join(' ') }}]
+set rvbench_synlig_args [list {{ tcl_synlig_args | join(' ') }}]
+set rvbench_defines [list {{ tcl_define_args | join(' ') }}]

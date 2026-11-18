@@ -15,7 +15,8 @@
 #
 # Only reached on the failure path, so cores that already synthesise through
 # Surelog are untouched.
-yosys read_verilog -sv {{ include_dirs_str }} {{ files | join(' ') }}
+{% include 'yosys_file_args.j2' %}
+yosys read_verilog -sv {*}$rvbench_includes {*}$rvbench_defines {*}$rvbench_files
 
 # RV-Bench local addition (not upstream): mark that the read step
 # succeeded, so run_tool() can tell a failed read from a failed

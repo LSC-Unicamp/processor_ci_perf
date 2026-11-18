@@ -9,7 +9,8 @@
 # Reading without `-sv` puts Yosys in Verilog-2005 mode, where `int` is an
 # ordinary identifier again.  Only reached after all three SystemVerilog
 # frontends have failed, so every core that already synthesises is untouched.
-yosys read_verilog {{ include_dirs_str }} {{ files | join(' ') }}
+{% include 'yosys_file_args.j2' %}
+yosys read_verilog {*}$rvbench_includes {*}$rvbench_defines {*}$rvbench_files
 
 # RV-Bench local addition (not upstream): mark that the read step
 # succeeded, so run_tool() can tell a failed read from a failed
