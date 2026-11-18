@@ -559,8 +559,57 @@ class YosysFlow(ImplementationFlow):
         )
 
         read_ok_marker = 'build/rvbench_read_ok'
+        parser_marker = 'build/rvbench_effective_parser'
         synthesised = False
         last_error: subprocess.CalledProcessError | None = None
+        attempts: list[dict[str, Any]] = []
+        selected: dict[str, Any] | None = None
+        flow_path = os.path.join(
+            getattr(self, 'report_path', 'reports'), f'{prefix}_flow.json'
+        )
+        os.makedirs(os.path.dirname(flow_path), exist_ok=True)
+        if os.path.exists(flow_path):
+            os.remove(flow_path)
+
+        def attempt(label: str, command: list[str], mapping: str) -> bool:
+            nonlocal last_error, selected
+            parser = ('read_verilog_sv' if frontend == 'yosys' else 'read_systemverilog') \
+                if label == 'SystemVerilog' else {
+                    'Yosys read_verilog': 'read_verilog_sv',
+                    'Slang': 'read_slang',
+                    'Verilog-2005': 'read_verilog_2005',
+                }[label]
+            entry: dict[str, Any] = {
+                'parser': parser,
+                'executable': os.path.realpath(shutil.which(command[0]) or command[0]),
+                'mapping': mapping,
+                'script': os.path.basename(command[-1]),
+            }
+            try:
+                os.remove(parser_marker)
+            except OSError:
+                pass
+
+            def record_effective_parser() -> None:
+                if os.path.isfile(parser_marker):
+                    with open(parser_marker, encoding='utf-8') as marker:
+                        actual = marker.read().strip()
+                    if actual in {'read_systemverilog', 'read_verilog_sv'}:
+                        entry['parser'] = actual
+
+            try:
+                run_cmd(command)
+            except subprocess.CalledProcessError as exc:
+                last_error = exc
+                record_effective_parser()
+                attempts.append({**entry, 'return_code': exc.returncode,
+                                 'read_completed': os.path.exists(read_ok_marker)})
+                return False
+            record_effective_parser()
+            attempts.append({**entry, 'return_code': 0, 'read_completed': True})
+            selected = entry
+            return True
+
         for index, (label, command) in enumerate(frontends):
             if index:
                 print_yellow(f'retrying with the {label} frontend')
@@ -568,12 +617,9 @@ class YosysFlow(ImplementationFlow):
                 os.remove(read_ok_marker)
             except OSError:
                 pass
-            try:
-                run_cmd(command)
+            if attempt(label, command, 'abc9'):
                 synthesised = True
                 break
-            except subprocess.CalledProcessError as exc:
-                last_error = exc
             # The read succeeded (the marker exists) but the `-abc9` synth
             # step aborted: retry the same frontend with the classic `abc`.
             noabc9 = [*command[:-1], command[-1].replace('.tcl', '_noabc9.tcl')]
@@ -583,12 +629,21 @@ class YosysFlow(ImplementationFlow):
                 f'{label} frontend read the design but the -abc9 synth step '
                 f'failed; retrying with -noabc9'
             )
-            try:
-                run_cmd(noabc9)
+            os.remove(read_ok_marker)
+            if attempt(label, noabc9, 'abc'):
                 synthesised = True
                 break
-            except subprocess.CalledProcessError as exc:
-                last_error = exc
+        flow_record = {
+            'schema_version': 1,
+            'requested_frontend': frontend,
+            'selected': selected,
+            'attempts': attempts,
+        }
+        temporary_path = flow_path + '.tmp'
+        with open(temporary_path, 'w', encoding='utf-8') as output:
+            json.dump(flow_record, output, indent=2)
+            output.write('\n')
+        os.replace(temporary_path, flow_path)
         if not synthesised and last_error is not None:
             raise last_error
 
@@ -901,6 +956,7 @@ def run_fpga_flow(
     flow.nextpnr_args = nextpnr_args or []
     flow.nextpnr_timeout = nextpnr_timeout
     flow.frontend = frontend
+    flow.report_path = report_path
     flow.top_params = top_params or []
     flow.defines = defines or []
     # RV-Bench local patch: metrics-only runs skip the bitstream step.

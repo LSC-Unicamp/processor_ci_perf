@@ -1,7 +1,9 @@
 {% include 'yosys_file_args.j2' %}
 {% if frontend == 'yosys' %}
+set rvbench_effective_parser read_verilog_sv
 yosys read_verilog -sv {*}$rvbench_includes {*}$rvbench_defines {*}$rvbench_files
 {% else %}
+set rvbench_effective_parser read_systemverilog
 # === Ler arquivos SystemVerilog com defer ===
 # One call for every file, not one call per file: each separate
 # read_systemverilog invocation is its own SystemVerilog compilation unit, so a
@@ -37,12 +39,16 @@ yosys chparam {% for name, value in top_params %}-set {{ name }} {{ value }} {% 
 if {[catch {yosys "hierarchy -top {{ top_module }}"} rvbench_msg]} {
     yosys "design -reset"
     yosys read_verilog -sv {*}$rvbench_includes {*}$rvbench_defines {*}$rvbench_files
+    set rvbench_effective_parser read_verilog_sv
 }
 
 # RV-Bench local addition (not upstream): mark that the read step
 # succeeded, so run_tool() can tell a failed read from a failed
 # `-abc9` synth step and only retry the latter with `-noabc9`.
 set _rvbench_fh [open "build/rvbench_read_ok" w]
+close $_rvbench_fh
+set _rvbench_fh [open "build/rvbench_effective_parser" w]
+puts $_rvbench_fh $rvbench_effective_parser
 close $_rvbench_fh
 
 # Síntese para ECP5

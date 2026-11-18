@@ -1,5 +1,6 @@
 """The process and template contract used by RV-Bench synthesis adapters."""
 
+import json
 import subprocess
 import shutil
 import sys
@@ -107,7 +108,7 @@ def test_fpga_includes_and_flags_reach_one_compilation_unit(tmp_path, monkeypatc
     flow.generate_project()
     script = (tmp_path / "yosys_project.tcl").read_text()
     lines = [line for line in script.splitlines()
-             if "read_systemverilog" in line and not line.lstrip().startswith("#")]
+             if line.lstrip().startswith("yosys read_systemverilog")]
     assert len([line for line in lines if "-defer" in line]) == 1
     assert f'set rvbench_includes [list "-I{include}"]' in script
     assert f"-I{tmp_path}/{include}" not in script
@@ -363,7 +364,8 @@ def test_yosys_fallbacks_keep_source_paths_with_spaces_as_one_argument(tmp_path,
         assert "{*}$rvbench_files" in script
 
 
-def test_fpga_uses_explicit_locked_executables(monkeypatch):
+def test_fpga_uses_explicit_locked_executables(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     calls = []
     monkeypatch.setattr('core.fpga.run_cmd', lambda command: calls.append(command))
     monkeypatch.setenv('SYNLIG_EXE', '/locked/synlig')
@@ -379,6 +381,115 @@ def test_fpga_uses_explicit_locked_executables(monkeypatch):
     assert [command[0] for command in calls] == [
         '/locked/synlig', '/locked/nextpnr-ecp5', '/locked/ecppack']
     assert '--ignore-loops' in calls[1]
+
+
+def test_fpga_records_the_parser_executable_and_mapping_that_succeeded(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('SYNLIG_EXE', '/locked/synlig')
+    monkeypatch.setenv('NEXTPNR_ECP5_EXE', '/locked/nextpnr-ecp5')
+
+    def fake_run(command, **_kwargs):
+        script = command[-1]
+        if script == 'yosys_project.tcl':
+            raise subprocess.CalledProcessError(1, command)
+        if script == 'yosys_verilog.tcl':
+            (tmp_path / 'build').mkdir(exist_ok=True)
+            (tmp_path / 'build/rvbench_read_ok').touch()
+            raise subprocess.CalledProcessError(2, command)
+
+    monkeypatch.setattr('core.fpga.run_cmd', fake_run)
+    flow = YosysFlow(
+        technology='colorlight_i9', project_files=['/src/core.v'],
+        constraint_file='default', top_module='core',
+        include_dirs=[], env=_environment(),
+    )
+    flow.bitstream = False
+    flow.report_path = str(tmp_path / 'evidence')
+    flow.generate_project()
+    flow.run_tool()
+
+    recorded = json.loads((tmp_path / 'evidence/colorlight_i9_flow.json').read_text())
+    assert recorded['requested_frontend'] == 'synlig'
+    assert recorded['selected'] == {
+        'parser': 'read_verilog_sv', 'executable': '/locked/synlig',
+        'mapping': 'abc', 'script': 'yosys_verilog_noabc9.tcl',
+    }
+    assert [attempt['return_code'] for attempt in recorded['attempts']] == [1, 2, 0]
+    assert [attempt['read_completed'] for attempt in recorded['attempts']] == [
+        False, True, True]
+
+
+def test_fpga_native_frontend_records_native_executable(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('YOSYS_EXE', '/locked/yosys')
+    monkeypatch.setenv('NEXTPNR_ECP5_EXE', '/locked/nextpnr-ecp5')
+    monkeypatch.setattr('core.fpga.run_cmd', lambda command, **_kwargs: None)
+    flow = YosysFlow(
+        technology='colorlight_i9', project_files=['/src/core.v'],
+        constraint_file='default', top_module='core',
+        include_dirs=[], env=_environment(),
+    )
+    flow.frontend = 'yosys'
+    flow.bitstream = False
+    flow.generate_project()
+    flow.run_tool()
+    recorded = json.loads((tmp_path / 'reports/colorlight_i9_flow.json').read_text())
+    assert recorded['selected']['executable'] == '/locked/yosys'
+    assert recorded['selected']['parser'] == 'read_verilog_sv'
+    assert recorded['selected']['mapping'] == 'abc9'
+    assert len(recorded['attempts']) == 1
+
+
+def test_synlig_internal_top_fallback_records_actual_parser(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('SYNLIG_EXE', '/locked/synlig')
+    monkeypatch.setenv('NEXTPNR_ECP5_EXE', '/locked/nextpnr-ecp5')
+    flow = YosysFlow(
+        technology='colorlight_i9', project_files=['/src/core.v'],
+        constraint_file='default', top_module='core',
+        include_dirs=[], env=_environment(),
+    )
+    flow.bitstream = False
+    flow.generate_project()
+    script = (tmp_path / 'yosys_project.tcl').read_text()
+    assert 'set rvbench_effective_parser read_systemverilog' in script
+    assert 'set rvbench_effective_parser read_verilog_sv' in script
+    assert 'build/rvbench_effective_parser' in script
+
+    def fake_run(command, **_kwargs):
+        if command[-1] == 'yosys_project.tcl':
+            (tmp_path / 'build/rvbench_effective_parser').write_text('read_verilog_sv\n')
+
+    monkeypatch.setattr('core.fpga.run_cmd', fake_run)
+    flow.run_tool()
+    recorded = json.loads((tmp_path / 'reports/colorlight_i9_flow.json').read_text())
+    assert recorded['selected']['executable'] == '/locked/synlig'
+    assert recorded['selected']['parser'] == 'read_verilog_sv'
+    assert recorded['selected']['script'] == 'yosys_project.tcl'
+
+
+def test_fpga_failed_synthesis_retains_attempt_evidence(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('YOSYS_EXE', '/locked/yosys')
+    monkeypatch.setattr('core.fpga._slang_yosys_bin', lambda: None)
+
+    def fail(command, **_kwargs):
+        raise subprocess.CalledProcessError(7, command)
+
+    monkeypatch.setattr('core.fpga.run_cmd', fail)
+    flow = YosysFlow(
+        technology='colorlight_i9', project_files=['/src/core.v'],
+        constraint_file='default', top_module='core',
+        include_dirs=[], env=_environment(),
+    )
+    flow.frontend = 'yosys'
+    flow.bitstream = False
+    flow.generate_project()
+    with pytest.raises(subprocess.CalledProcessError):
+        flow.run_tool()
+    recorded = json.loads((tmp_path / 'reports/colorlight_i9_flow.json').read_text())
+    assert recorded['selected'] is None
+    assert [attempt['return_code'] for attempt in recorded['attempts']] == [7, 7, 7]
 
 
 def test_unplaced_ecp5_design_retains_synthesis_utilization(tmp_path, monkeypatch):
