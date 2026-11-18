@@ -886,6 +886,7 @@ def run_fpga_flow(
         loader=FileSystemLoader(TEMPLATES_DIR),
         trim_blocks=True,
         lstrip_blocks=True,
+        keep_trailing_newline=True,
     )
 
     flow: ImplementationFlow = get_flow(

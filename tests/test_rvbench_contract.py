@@ -131,6 +131,9 @@ def test_fpga_defines_reach_every_yosys_read_path(tmp_path, monkeypatch):
                  "yosys_verilog2005_noabc9.tcl"):
         script = (tmp_path / name).read_text()
         assert 'set rvbench_defines [list "-DFEATURE" "-DDEPTH=64"]' in script
+        assert '\nyosys ' in script
+        assert not any('set rvbench_defines ' in line and 'yosys ' in line
+                       for line in script.splitlines())
         reads = [line for line in script.splitlines()
                  if line.lstrip().startswith(("yosys read_verilog", "yosys read_slang",
                                             "yosys read_systemverilog"))]
